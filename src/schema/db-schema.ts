@@ -1,4 +1,4 @@
-import {z} from "zod";
+import { z } from 'zod';
 
 export const DtoAccountSchema = z.object({
   userId: z.string(),
@@ -17,11 +17,11 @@ export type DtoAccount = z.infer<typeof DtoAccountSchema>;
 
 export const DtoUserSchema = z.object({
   id: z.string(),
-  name: z.string().min(1),
+  name: z.string().min(1).nullable(),
   email: z.string().email(),
-  emailVerified: z.date().optional(),
-  role: z.enum(["USER", "ADMIN"]),
-  image: z.string().optional(),
+  emailVerified: z.date().nullish(),
+  role: z.enum(['USER', 'ADMIN']),
+  image: z.string().nullish(),
   createdAt: z.date(),
   updatedAt: z.date(),
   accounts: z.array(DtoAccountSchema),

@@ -18,6 +18,10 @@ const userSerializer: EntitySerializer<DtoUser> = {
 
 export const serializeJsonApi = SerializeBuilder.new().add('users', userSerializer).build();
 
-// const userQueryParser = createQueryParser({
-//
-// });
+export const parseUserQuery = createQueryParser({
+  fields: {
+    allowed: {
+      users: ['name', 'email', 'emailVerified', 'role'],
+    },
+  },
+});

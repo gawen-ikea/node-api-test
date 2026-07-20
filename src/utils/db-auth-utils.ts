@@ -46,3 +46,9 @@ export async function authorizeUserByEmailAndPassword(email: string, password: s
 
   return findDtoUserByEmail(email);
 }
+
+export async function deleteUserByEmail(email: string): Promise<void> {
+  await prisma.user.delete({
+    where: { email },
+  });
+}

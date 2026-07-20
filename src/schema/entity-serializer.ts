@@ -1,5 +1,6 @@
-import {DtoUser} from "@/schema/db-schema";
-import {EntitySerializer, SerializeBuilder} from "@jsonapi-serde/server/response";
+import { DtoUser } from '@/schema/db-schema';
+import { EntitySerializer, SerializeBuilder } from '@jsonapi-serde/server/response';
+import { createQueryParser } from '@jsonapi-serde/server/request';
 
 const userSerializer: EntitySerializer<DtoUser> = {
   getId: (user: DtoUser) => user.email,
@@ -11,11 +12,12 @@ const userSerializer: EntitySerializer<DtoUser> = {
       email: user.email,
       emailVerified: user.emailVerified ? user.emailVerified.toISOString() : null,
       role: user.role,
-    }
+    },
   }),
 };
 
-export const serializeJsonApi = SerializeBuilder
-  .new()
-  .add("users", userSerializer)
-  .build();
+export const serializeJsonApi = SerializeBuilder.new().add('users', userSerializer).build();
+
+// const userQueryParser = createQueryParser({
+//
+// });

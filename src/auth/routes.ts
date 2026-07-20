@@ -7,10 +7,7 @@ import type { Session } from 'next-auth';
  * -  Authenticated users - can access
  * -  Unauthenticated users - can access
  */
-const publicRoutes = [
-  '/',
-  '/auth/signup',
-];
+const publicRoutes = ['/', '/error', '/auth/signup'];
 
 const publicRoutePrefixes = ['/api'];
 
@@ -25,12 +22,12 @@ const authenticationRoutes = ['/auth/login'];
 
 export type AuthorizeByRouteResult =
   | {
-  action: 'allow';
-}
+      action: 'allow';
+    }
   | {
-  action: 'redirect';
-  redirectTo: string;
-};
+      action: 'redirect';
+      redirectTo: string;
+    };
 
 export function authorizeByRoute(pathName: string, auth: Session | null): AuthorizeByRouteResult {
   const isAuthenticated = !!auth;

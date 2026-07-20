@@ -1,8 +1,8 @@
-import {auth} from "@/auth/auth-core";
-import {errorMessage, restErrorResponse, restSuccessResponse} from "@/utils/api-utils";
-import {findDtoUserByEmail} from "@/utils/db-auth-utils";
-import {serializeJsonApi} from "@/schema/entity-serializer";
-import {nanoid} from "nanoid";
+import { auth } from '@/auth/auth-core';
+import { errorMessage, restErrorResponse, restSuccessResponse } from '@/utils/api-utils';
+import { findDtoUserByEmail } from '@/utils/db-auth-utils';
+import { serializeJsonApi } from '@/schema/entity-serializer';
+import { nanoid } from 'nanoid';
 
 /**
  * Get the details of a user by email.
@@ -10,36 +10,37 @@ import {nanoid} from "nanoid";
  * @param params
  * @constructor
  */
-export async function GET(request: Request, { params }: { params: { email: string } }) {
-  const email = params.email;
+export async function GET(request: Request, { params }: { params: Promise<{ email: string }> }) {
+  const { email } = await params;
 
   // Validate accept header
-  const acceptHeader = request.headers.get("Accept");
-  if (!acceptHeader || !acceptHeader.includes("application/vnd.api+json")) {
+  const acceptHeader = request.headers.get('Accept');
+  if (!acceptHeader || !acceptHeader.includes('application/vnd.api+json')) {
     return restErrorResponse(406);
   }
 
   // Authentication check
-  const curUser = await auth();
+  const curSession = await auth();
+  const curUser = curSession?.user;
   if (!curUser) {
-    return restErrorResponse(401, { code: "unauthorized", title: "Unauthorized" });
+    return restErrorResponse(401, { code: 'unauthorized', title: 'Unauthorized' });
   }
 
-  if (curUser.role !== "ADMIN" && curUser.email !== email) {
-    return restErrorResponse(403, { code: "forbidden", title: "Forbidden" });
+  if (curUser.role !== 'ADMIN' && curUser.email !== email) {
+    return restErrorResponse(403, { code: 'forbidden', title: 'Forbidden' });
   }
 
   // Fetch full user information from the database
   try {
     const targetUser = await findDtoUserByEmail(email);
     if (!targetUser) {
-      return restErrorResponse(404, { code: "not_found", title: "User not found", detail: `User ${email} not found` });
+      return restErrorResponse(404, { code: 'not_found', title: 'User not found', detail: `User ${email} not found` });
     }
 
-    const serializedUser = serializeJsonApi("users", targetUser, {
+    const serializedUser = serializeJsonApi('users', targetUser, {
       links: {
-        self: request.url
-      }
+        self: request.url,
+      },
     });
 
     return restSuccessResponse(JSON.stringify(serializedUser), serializedUser.getStatus());
@@ -48,5 +49,4 @@ export async function GET(request: Request, { params }: { params: { email: strin
     console.error(`error[${errorId}] Error fetching user data: ${errorMessage(error)}`);
     return restErrorResponse(500, { detail: `errorId: ${errorId}` });
   }
-
 }

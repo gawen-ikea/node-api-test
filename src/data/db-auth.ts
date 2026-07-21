@@ -102,3 +102,24 @@ export async function deleteUserByEmail(email: string): Promise<void> {
   });
   revalidateTag(CACHE_TAG_USERS, 'max');
 }
+
+export async function modifyUserByEmail(
+  email: string,
+  updates: Partial<Pick<DtoUser, 'name' | 'role'>>,
+): Promise<DtoUser | null> {
+  const { name, role } = updates;
+  if (name === undefined && role === undefined) {
+    throw new Error('At least one attribute must be provided for update');
+  }
+
+  const newUser = await prisma.user.update({
+    where: {
+      email,
+    },
+    data: {
+      ...updates,
+    },
+  });
+  revalidateTag(CACHE_TAG_USERS, 'max');
+  return parseDtoUser(newUser);
+}

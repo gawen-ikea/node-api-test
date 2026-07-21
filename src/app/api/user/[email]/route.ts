@@ -1,16 +1,12 @@
 import { nanoid } from 'nanoid';
 import { JsonApiError } from '@jsonapi-serde/server/common';
+import {} from '@jsonapi-serde/server/request';
 
 import { auth, ExtendedSessionUser } from '@/auth/auth-core';
-import {
-  apiJsonErrorResponse,
-  apiJsonDocumentResponse,
-  errorMessage,
-  restJsonErrorResponse,
-  restSuccessResponse,
-} from '@/utils/api-utils';
-import { deleteUserByEmail, findDtoUserByEmail } from '@/data/db-auth';
-import { serializeJsonApi } from '@/schema/entity-serializer';
+import { apiJsonErrorResponse, apiJsonDocumentResponse, errorMessage } from '@/utils/api-utils';
+import { deleteUserByEmail, findDtoUserByEmail, modifyUserByEmail } from '@/data/db-auth';
+import { parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
+import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 type UserRouteParams = {
   request: Request;
@@ -25,12 +21,9 @@ type UserRouteParams = {
 export async function userRouteHandler({ request, params, routeFunc }: UserRouteParams): Promise<Response> {
   const { email } = await params;
 
-  // Validate JSON:API acceptance
-  if (!request.headers.get('Accept')?.includes('application/vnd.api+json')) {
-    return restJsonErrorResponse(406, { code: 'not_acceptable', title: 'Not Acceptable' });
-  }
-
   try {
+    getAcceptableMediaTypes(request.headers.get('accept') ?? '');
+
     const curSession = await auth();
     const curUser = curSession?.user;
 
@@ -102,12 +95,105 @@ async function getUserProfileRouteHandler(params: {
   return apiJsonDocumentResponse(serializedUser);
 }
 
+/**
+ * Only allow ADMIN to modify other users' profiles. Users can modify their own profile.
+ * Only allow ADMIN to change roles. Users can change their own name and password.
+ * Sample request: PATCH /api/user/{email}
+ * @param params
+ * @returns
+ */
 async function modifyUserProfileRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
   request: Request;
   email: string;
 }) {
   const { currentUser, request, email } = params;
+  if (!currentUser) {
+    return apiJsonErrorResponse(
+      new JsonApiError({
+        status: '401',
+        code: 'unauthorized',
+        title: 'Unauthorized',
+        detail: 'You must be authenticated to access this resource.',
+      }),
+    );
+  }
+
+  if (currentUser.role !== 'ADMIN' && currentUser.email !== email) {
+    return apiJsonErrorResponse(
+      new JsonApiError({
+        status: '403',
+        code: 'forbidden',
+        title: 'Forbidden',
+        detail: 'You do not have permission to retrieve the profile of this user.',
+      }),
+    );
+  }
+
+  const isAdmin = currentUser.role === 'ADMIN';
+  const body = await request.text();
+  const modifyRequest = parseUserModifyRequest({
+    body,
+    contentType: request.headers.get('Content-Type') ?? '',
+  });
+
+  /*
+   * JSON:API requires the resource identifier in the request body.
+   * Ensure it refers to the same resource as the URL.
+   */
+  if (modifyRequest.id !== email) {
+    throw new JsonApiError({
+      status: '400',
+      code: 'bad_request',
+      title: 'Bad Request',
+      detail: 'The resource identifier in the request body does not match the URL.',
+      source: {
+        pointer: request.url,
+      },
+    });
+  }
+
+  /*
+   * Only allow ADMIN to modify ROLE attribute
+   */
+  if (modifyRequest.attributes.role && !isAdmin) {
+    throw new JsonApiError({
+      status: '403',
+      code: 'forbidden',
+      title: 'Forbidden',
+      detail: 'You do not have permission to modify the role attribute.',
+    });
+  }
+
+  /*
+   * Find the user on database
+   */
+  const dbUser = await findDtoUserByEmail(email);
+  if (!dbUser) {
+    throw new JsonApiError({
+      status: '404',
+      code: 'not_found',
+      title: 'Not Found',
+      detail: 'The user does not exist.',
+    });
+  }
+
+  /**
+   * Update the user profile
+   */
+  const newUser = await modifyUserByEmail(email, {
+    name: modifyRequest.attributes.name,
+    role: modifyRequest.attributes.role,
+  });
+
+  const rspDocument = serializeJsonApi('users', newUser, {
+    status: 200,
+    links: {
+      self: request.url,
+    },
+  });
+
+  return apiJsonDocumentResponse(rspDocument);
 }
 
 /**

@@ -1,8 +1,22 @@
 import { JsonApiError, type JsonApiDocument } from '@jsonapi-serde/server/common';
 import { NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : `${error}`;
+}
+
+export function standardErrorResponse(error: unknown): Response {
+  if (error instanceof Error || error instanceof JsonApiError) {
+    return apiJsonErrorResponse(error as Error | JsonApiError);
+  } else {
+    const errorId = nanoid();
+    console.error(`error[${errorId}] Unexpected error during authentication: ${errorMessage(error)}`);
+    return apiJsonErrorResponse(new Error('Unexpected error during authentication'), {
+      status: 500,
+      detail: `errorId: ${errorId}`,
+    });
+  }
 }
 
 export function restJsonErrorResponse(status: number, message: Record<string, string>) {

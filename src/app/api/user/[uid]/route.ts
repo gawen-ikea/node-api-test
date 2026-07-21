@@ -4,14 +4,7 @@ import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 import { auth, ExtendedSessionUser } from '@/auth/auth-core';
 import { apiJsonErrorResponse, apiJsonDocumentResponse, errorMessage } from '@/utils/api-utils';
-import {
-  deleteUserByEmail,
-  deleteUserById,
-  findDtoUserByEmail,
-  findDtoUserById,
-  modifyUserByEmail,
-  modifyUserById,
-} from '@/data/db-auth';
+import { deleteUserById, findDtoUserById, modifyUserById } from '@/data/db-auth';
 import { parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
 
 type UserRouteParams = {

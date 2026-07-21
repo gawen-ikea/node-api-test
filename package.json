@@ -10,7 +10,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint",
+    "lint": "eslint . --max-warnings=0",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^17.1.0",
     "prettier": "3.9.5",
@@ -43,7 +44,7 @@
     "vitest": "^4.1.10"
   },
   "lint-staged": {
-    "*.{ts,tsx}": "eslint --cache --fix",
+    "*.{js,jsx,ts,tsx}": "eslint --cache --fix --max-warnings=0",
     "*.{ts,tsx,css,md}": "prettier --write"
   }
 }

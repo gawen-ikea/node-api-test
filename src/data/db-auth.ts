@@ -4,7 +4,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import type { CredentialCreationRequest } from '@/schema/api-schema';
 import { prisma } from '@/service/db-service';
 import { DtoUser, DtoUserSchema } from '@/schema/db-schema';
-import { customAlphabet, nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 
 const SETTING_PASSWORD_SALT_ROUNDS = 12;
 

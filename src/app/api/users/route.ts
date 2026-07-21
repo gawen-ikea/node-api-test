@@ -3,7 +3,7 @@ import { JsonApiError } from '@jsonapi-serde/server/common';
 import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 import { parseUsersCreationRequest, parseUsersListQuery, serializeJsonApi } from '@/schema/entity-serializer';
-import { createDtoUser, findDtoUserByEmail, findDtoUserById, findDtoUsers } from '@/data/db-auth';
+import { createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
 import { apiJsonDocumentResponse, apiJsonErrorResponse, standardErrorResponse } from '@/utils/api-utils';
 
 /**

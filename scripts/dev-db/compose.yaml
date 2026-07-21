@@ -1,3 +1,14 @@
+#
+# On Mac Apple Silicon, use the following command to run the container:
+# container run -d \
+#   --name nat-db-dev \
+#   -e POSTGRES_USER="nat_default_user" \
+#   -e POSTGRES_PASSWORD="nat_default_password" \
+#   -e POSTGRES_DB="nat_default_db" \
+#   -p "-5432:5432" \
+#   -v nat-db-dev-data:/var/lib/postgresql \
+#   postgres:18-alpine
+
 name: nat-db-dev
 
 volumes:

@@ -1,33 +1,39 @@
 import { nanoid } from 'nanoid';
 import { JsonApiError } from '@jsonapi-serde/server/common';
-import {} from '@jsonapi-serde/server/request';
+import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 import { auth, ExtendedSessionUser } from '@/auth/auth-core';
 import { apiJsonErrorResponse, apiJsonDocumentResponse, errorMessage } from '@/utils/api-utils';
-import { deleteUserByEmail, findDtoUserByEmail, modifyUserByEmail } from '@/data/db-auth';
+import {
+  deleteUserByEmail,
+  deleteUserById,
+  findDtoUserByEmail,
+  findDtoUserById,
+  modifyUserByEmail,
+  modifyUserById,
+} from '@/data/db-auth';
 import { parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
-import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 type UserRouteParams = {
   request: Request;
-  params: Promise<{ email: string }>;
+  params: Promise<{ uid: string }>;
   routeFunc: (params: {
     currentUser: ExtendedSessionUser | null | undefined;
     request: Request;
-    email: string;
+    uid: string;
   }) => Promise<Response>;
 };
 
 export async function userRouteHandler({ request, params, routeFunc }: UserRouteParams): Promise<Response> {
-  const { email } = await params;
+  const { uid } = await params;
 
   try {
     getAcceptableMediaTypes(request.headers.get('accept') ?? '');
 
     const curSession = await auth();
-    const curUser = curSession?.user;
+    const currentUser = curSession?.user;
 
-    return await routeFunc({ currentUser: curUser, request, email });
+    return await routeFunc({ currentUser, request, uid });
   } catch (error: unknown) {
     if (error instanceof Error || error instanceof JsonApiError) {
       return apiJsonErrorResponse(error as Error | JsonApiError);
@@ -50,9 +56,9 @@ export async function userRouteHandler({ request, params, routeFunc }: UserRoute
 async function getUserProfileRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
   request: Request;
-  email: string;
+  uid: string;
 }) {
-  const { currentUser, request, email } = params;
+  const { currentUser, request, uid } = params;
   if (!currentUser) {
     return apiJsonErrorResponse(
       new JsonApiError({
@@ -64,7 +70,7 @@ async function getUserProfileRouteHandler(params: {
     );
   }
 
-  if (currentUser.role !== 'ADMIN' && currentUser.email !== email) {
+  if (currentUser.role !== 'ADMIN' && currentUser.id !== uid) {
     return apiJsonErrorResponse(
       new JsonApiError({
         status: '403',
@@ -75,14 +81,14 @@ async function getUserProfileRouteHandler(params: {
     );
   }
 
-  const targetUser = await findDtoUserByEmail(email);
+  const targetUser = await findDtoUserById(uid);
   if (!targetUser) {
     return apiJsonErrorResponse(
       new JsonApiError({
         status: '404',
         code: 'not_found',
         title: 'User not found',
-        detail: `User ${email} not found`,
+        detail: `User ${uid} not found`,
       }),
     );
   }
@@ -98,16 +104,16 @@ async function getUserProfileRouteHandler(params: {
 /**
  * Only allow ADMIN to modify other users' profiles. Users can modify their own profile.
  * Only allow ADMIN to change roles. Users can change their own name and password.
- * Sample request: PATCH /api/user/{email}
+ * Sample request: PATCH /api/user/{uid}
  * @param params
  * @returns
  */
 async function modifyUserProfileRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
   request: Request;
-  email: string;
+  uid: string;
 }) {
-  const { currentUser, request, email } = params;
+  const { currentUser, request, uid } = params;
   if (!currentUser) {
     return apiJsonErrorResponse(
       new JsonApiError({
@@ -119,7 +125,7 @@ async function modifyUserProfileRouteHandler(params: {
     );
   }
 
-  if (currentUser.role !== 'ADMIN' && currentUser.email !== email) {
+  if (currentUser.role !== 'ADMIN' && currentUser.id !== uid) {
     return apiJsonErrorResponse(
       new JsonApiError({
         status: '403',
@@ -141,7 +147,7 @@ async function modifyUserProfileRouteHandler(params: {
    * JSON:API requires the resource identifier in the request body.
    * Ensure it refers to the same resource as the URL.
    */
-  if (modifyRequest.id !== email) {
+  if (modifyRequest.id !== uid) {
     throw new JsonApiError({
       status: '400',
       code: 'bad_request',
@@ -166,9 +172,9 @@ async function modifyUserProfileRouteHandler(params: {
   }
 
   /*
-   * Find the user on database
+   * Find the user in the database
    */
-  const dbUser = await findDtoUserByEmail(email);
+  const dbUser = await findDtoUserById(uid);
   if (!dbUser) {
     throw new JsonApiError({
       status: '404',
@@ -181,7 +187,7 @@ async function modifyUserProfileRouteHandler(params: {
   /**
    * Update the user profile
    */
-  const newUser = await modifyUserByEmail(email, {
+  const newUser = await modifyUserById(uid, {
     name: modifyRequest.attributes.name,
     role: modifyRequest.attributes.role,
   });
@@ -204,9 +210,9 @@ async function modifyUserProfileRouteHandler(params: {
 async function deleteUserRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
   request: Request;
-  email: string;
+  uid: string;
 }) {
-  const { currentUser, request, email } = params;
+  const { currentUser, request, uid } = params;
   if (!currentUser) {
     return apiJsonErrorResponse(
       new JsonApiError({
@@ -218,7 +224,7 @@ async function deleteUserRouteHandler(params: {
     );
   }
 
-  if (currentUser.role !== 'ADMIN' || currentUser.email === email) {
+  if (currentUser.role !== 'ADMIN' || currentUser.id === uid) {
     return apiJsonErrorResponse(
       new JsonApiError({
         status: '403',
@@ -229,7 +235,7 @@ async function deleteUserRouteHandler(params: {
     );
   }
 
-  await deleteUserByEmail(email);
+  await deleteUserById(uid);
   return apiJsonDocumentResponse(
     serializeJsonApi('users', null, {
       status: 204,
@@ -247,7 +253,7 @@ async function deleteUserRouteHandler(params: {
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response containing the user details in JSON:API format or an error response.
  * @constructor
  */
-export async function GET(request: Request, { params }: { params: Promise<{ email: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ uid: string }> }) {
   return userRouteHandler({ request, params, routeFunc: getUserProfileRouteHandler });
 }
 
@@ -259,17 +265,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ emai
  * @param {{ params: Promise<{ email: string }> }} param1 - An object containing the route parameters, specifically the email of the user to delete.
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response indicating the result of the delete operation.
  */
-export async function DELETE(request: Request, { params }: { params: Promise<{ email: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ uid: string }> }) {
   return userRouteHandler({ request, params, routeFunc: deleteUserRouteHandler });
 }
 
 /**
  * Modify a user's profile.
- * Sample request: PATCH /api/user/{email}
+ * Sample request: PATCH /api/user/{id}
  * @param request - The incoming HTTP request object.
- * @param {{ params: Promise<{ email: string }> }} param1 - An object containing the route parameters, specifically the email of the user to modify.
+ * @param {{ params: Promise<{ uid: string }> }} param1 - An object containing the route parameters, specifically the id of the user to modify.
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response indicating the result of the modify operation.
  */
-export async function PATCH(request: Request, { params }: { params: Promise<{ email: string }> }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ uid: string }> }) {
   return userRouteHandler({ request, params, routeFunc: modifyUserProfileRouteHandler });
 }

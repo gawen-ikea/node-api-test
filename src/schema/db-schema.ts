@@ -18,12 +18,12 @@ export type DtoAccount = z.infer<typeof DtoAccountSchema>;
 export const DtoUserSchema = z.object({
   id: z.string(),
   name: z.string().min(1).nullable(),
-  email: z.string().email(),
+  email: z.email(),
   emailVerified: z.date().nullish(),
   role: z.enum(['USER', 'ADMIN']),
   image: z.string().nullish(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  accounts: z.array(DtoAccountSchema),
+  accounts: z.array(DtoAccountSchema).optional(),
 });
 export type DtoUser = z.infer<typeof DtoUserSchema>;

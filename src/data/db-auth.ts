@@ -1,10 +1,16 @@
 import bcrypt from 'bcryptjs';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+
 import type { CredentialCreationRequest } from '@/schema/api-schema';
 import { prisma } from '@/service/db-service';
 import { DtoUser, DtoUserSchema } from '@/schema/db-schema';
+import { customAlphabet, nanoid } from 'nanoid';
+
+const SETTING_PASSWORD_SALT_ROUNDS = 12;
 
 const CACHE_TAG_USERS = 'users';
+
+const credentialUserIdGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 12);
 
 function parseDtoUser(dbUser: unknown): DtoUser {
   const dtoUserValidation = DtoUserSchema.safeParse(dbUser);
@@ -40,16 +46,15 @@ export async function findDtoUsers(): Promise<DtoUser[]> {
 }
 
 export async function createDtoUser(request: CredentialCreationRequest): Promise<DtoUser> {
-  const password = await bcrypt.hash(request.password, 12);
+  const password = await bcrypt.hash(request.password, SETTING_PASSWORD_SALT_ROUNDS);
+  const uid = credentialUserIdGenerator();
   const dbUser = await prisma.user.create({
     data: {
+      id: uid,
       email: request.email,
       name: request.name,
       password,
       role: request.role,
-    },
-    include: {
-      accounts: true,
     },
   });
   revalidateTag(CACHE_TAG_USERS, 'max');
@@ -60,6 +65,21 @@ export async function createDtoUser(request: CredentialCreationRequest): Promise
 export async function findDtoUserByEmail(email: string): Promise<DtoUser | null> {
   const dbUser = await prisma.user.findUnique({
     where: { email },
+    include: {
+      accounts: true,
+    },
+  });
+
+  if (!dbUser) {
+    return null;
+  }
+
+  return parseDtoUser(dbUser);
+}
+
+export async function findDtoUserById(id: string): Promise<DtoUser | null> {
+  const dbUser = await prisma.user.findFirst({
+    where: { id },
     include: {
       accounts: true,
     },
@@ -103,6 +123,13 @@ export async function deleteUserByEmail(email: string): Promise<void> {
   revalidateTag(CACHE_TAG_USERS, 'max');
 }
 
+export async function deleteUserById(uid: string): Promise<void> {
+  await prisma.user.delete({
+    where: { id: uid },
+  });
+  revalidateTag(CACHE_TAG_USERS, 'max');
+}
+
 export async function modifyUserByEmail(
   email: string,
   updates: Partial<Pick<DtoUser, 'name' | 'role'>>,
@@ -115,6 +142,27 @@ export async function modifyUserByEmail(
   const newUser = await prisma.user.update({
     where: {
       email,
+    },
+    data: {
+      ...updates,
+    },
+  });
+  revalidateTag(CACHE_TAG_USERS, 'max');
+  return parseDtoUser(newUser);
+}
+
+export async function modifyUserById(
+  uid: string,
+  updates: Partial<Pick<DtoUser, 'name' | 'role'>>,
+): Promise<DtoUser | null> {
+  const { name, role } = updates;
+  if (name === undefined && role === undefined) {
+    throw new Error('At least one attribute must be provided for update');
+  }
+
+  const newUser = await prisma.user.update({
+    where: {
+      id: uid,
     },
     data: {
       ...updates,

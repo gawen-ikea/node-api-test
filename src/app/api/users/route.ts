@@ -1,9 +1,10 @@
 import { auth } from '@/auth/auth-core';
-import { parseUsersCreationRequest, parseUsersListQuery, serializeJsonApi } from '@/schema/entity-serializer';
-import { createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
-import { apiJsonDocumentResponse, apiJsonErrorResponse, standardErrorResponse } from '@/utils/api-utils';
 import { JsonApiError } from '@jsonapi-serde/server/common';
 import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
+
+import { parseUsersCreationRequest, parseUsersListQuery, serializeJsonApi } from '@/schema/entity-serializer';
+import { createDtoUser, findDtoUserByEmail, findDtoUserById, findDtoUsers } from '@/data/db-auth';
+import { apiJsonDocumentResponse, apiJsonErrorResponse, standardErrorResponse } from '@/utils/api-utils';
 
 /**
  * Get the collection of users.
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     /*
      * Check the existing user
      */
-    const existingUser = await findDtoUserByEmail(creationRequest.id);
+    const existingUser = await findDtoUserByEmail(creationRequest.attributes.email);
     if (existingUser) {
       return apiJsonErrorResponse(
         new JsonApiError({
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     const createdUser = await createDtoUser(creationRequest.attributes);
-    const userUrl = new URL(`/api/user/${encodeURIComponent(createdUser.email)}`, request.url).toString();
+    const userUrl = new URL(`/api/user/${encodeURIComponent(createdUser.id)}`, request.url).toString();
     const document = serializeJsonApi('users', createdUser, {
       status: 201,
       links: {

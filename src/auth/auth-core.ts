@@ -4,9 +4,10 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/service/db-service';
 import { DtoUser } from '@/schema/db-schema';
 import { CredentialAuthorizeRequestSchema } from '@/schema/api-schema';
-import { authorizeUserByEmailAndPassword, findDtoUserByEmail } from '@/data/db-auth';
+import { authorizeUserByEmailAndPassword, findDtoUserByEmail, findDtoUserById } from '@/data/db-auth';
 
 export type ExtendedSessionUser = DefaultSession['user'] & {
+  id: string;
   email: string;
   role: string;
 };
@@ -15,6 +16,11 @@ declare module 'next-auth' {
   interface Session {
     user: ExtendedSessionUser;
   }
+}
+
+const authSecret = process.env.NAT_AUTH_SECRET;
+if (!authSecret) {
+  throw new Error('NAT_AUTH_SECRET is not defined in environment variables');
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -29,6 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: '/error', // Error code passed in query string as ?error=
   },
   adapter: PrismaAdapter(prisma),
+  secret: authSecret,
 
   providers: [
     Credentials({
@@ -54,20 +61,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     async jwt({ token }) {
-      const email = token.sub;
-      if (!email) {
+      const uid = token.sub;
+      if (!uid) {
         return token;
       }
 
       // If this is the initial sign-in, add user info to the token
-      const dtoUser = await findDtoUserByEmail(email);
+      const dtoUser = await findDtoUserById(uid);
       if (!dtoUser) {
-        console.warn(`User not found for email: ${email}`);
+        console.warn(`User not found for id: ${uid}`);
         return token;
       }
 
       token.role = dtoUser.role;
-      token.email = email;
+      token.email = dtoUser.email;
       return token;
     },
 
@@ -76,6 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     //
     async session({ session, token }) {
       if (token && session.user) {
+        session.user.id = token.sub as string;
         session.user.email = token.email as string;
         session.user.role = token.role as string;
       }

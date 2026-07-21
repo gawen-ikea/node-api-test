@@ -53,3 +53,21 @@ pnpm install && pnpm build:prisma && pnpm db:push
 ```bash
 pnpm dev
 ```
+
+```bash
+curl -i -X POST 'http://localhost:3000/api/users' \
+  -H 'Accept: application/vnd.api+json' \
+  -H 'Content-Type: application/vnd.api+json' \
+  --data '{
+    "data": {
+      "type": "users",
+      "id": "new.user@example.com",
+      "attributes": {
+        "email": "new.user@example.com",
+        "password": "correct-horse-battery-staple",
+        "name": "New User",
+        "role": "USER"
+      }
+    }
+  }'
+```

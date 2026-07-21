@@ -15,3 +15,13 @@ export const CredentialCreationRequestSchema = z.object({
 });
 
 export type CredentialCreationRequest = z.infer<typeof CredentialCreationRequestSchema>;
+
+export const CredentialUpdateRequestSchema = z
+  .object({
+    name: z.string().min(4).optional(),
+    role: z.enum(['USER', 'ADMIN']).optional(),
+  })
+  .refine((attributes) => attributes.name !== undefined || attributes.role !== undefined, {
+    message: 'At least one attribute must be provided',
+  });
+export type CredentialUpdateRequest = z.infer<typeof CredentialUpdateRequestSchema>;

@@ -66,9 +66,11 @@ export function apiJsonErrorResponse(error: Error | JsonApiError, data?: ApiJson
 export function apiJsonDocumentResponse(document: JsonApiDocument, headers?: HeadersInit): Response {
   const responseHeaders = new Headers(headers);
   responseHeaders.set('Content-Type', document.getContentType());
+  const status = document.getStatus();
+  const body = status === 204 || status === 205 || status === 304 ? null : JSON.stringify(document.getBody());
 
-  return new Response(JSON.stringify(document.getBody()), {
-    status: document.getStatus(),
+  return new Response(body, {
+    status,
     headers: responseHeaders,
   });
 }

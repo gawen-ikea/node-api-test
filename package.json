@@ -8,6 +8,8 @@
     "build": "next build",
     "db:push": "prisma db push",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint",
     "prepare": "husky install"
   },
@@ -37,7 +39,8 @@
     "prettier": "3.9.5",
     "prisma": "^7.9.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
   "lint-staged": {
     "*.{ts,tsx}": "eslint --cache --fix",

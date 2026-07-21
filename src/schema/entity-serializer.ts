@@ -54,13 +54,17 @@ export const parseUsersListQuery = createQueryParser({
   sort: {
     allowed: ['name', 'role', 'email', 'createdAt', 'updatedAt'],
   },
-  filter: z.object({
-    role: z.string().optional(),
-  }),
-  page: z.object({
-    number: z.coerce.number().int().min(0).optional(),
-    size: z.coerce.number().int().min(10).optional(),
-  }),
+  filter: z
+    .object({
+      role: z.string().optional(),
+    })
+    .optional(),
+  page: z
+    .object({
+      number: z.coerce.number().int().min(0).optional(),
+      size: z.coerce.number().int().min(10).optional(),
+    })
+    .optional(),
 });
 
 export function parseUsersCreationRequest(context: ParseResourceRequestContext) {

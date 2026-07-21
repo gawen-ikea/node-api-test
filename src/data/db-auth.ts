@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
+import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import type { CredentialCreationRequest } from '@/schema/api-schema';
 import { prisma } from '@/service/db-service';
 import { DtoUser, DtoUserSchema } from '@/schema/db-schema';
+
+const CACHE_TAG_USERS = 'users';
 
 function parseDtoUser(dbUser: unknown): DtoUser {
   const dtoUserValidation = DtoUserSchema.safeParse(dbUser);
@@ -11,6 +14,19 @@ function parseDtoUser(dbUser: unknown): DtoUser {
   }
 
   return dtoUserValidation.data;
+}
+
+export async function listAllDtoUsers(): Promise<DtoUser[]> {
+  'use cache';
+  cacheLife({ stale: 60 });
+  cacheTag(CACHE_TAG_USERS);
+  const dbUsers = await prisma.user.findMany({
+    include: {
+      accounts: true,
+    },
+  });
+
+  return dbUsers.map(parseDtoUser);
 }
 
 export async function findDtoUsers(): Promise<DtoUser[]> {
@@ -36,6 +52,7 @@ export async function createDtoUser(request: CredentialCreationRequest): Promise
       accounts: true,
     },
   });
+  revalidateTag(CACHE_TAG_USERS, 'max');
 
   return parseDtoUser(dbUser);
 }
@@ -71,8 +88,8 @@ export async function authorizeUserByEmailAndPassword(email: string, password: s
     return null;
   }
 
-  const passworMatch = await bcrypt.compare(password, dbUser.password);
-  if (!passworMatch) {
+  const passwordMatch = await bcrypt.compare(password, dbUser.password);
+  if (!passwordMatch) {
     return null;
   }
 
@@ -83,4 +100,5 @@ export async function deleteUserByEmail(email: string): Promise<void> {
   await prisma.user.delete({
     where: { email },
   });
+  revalidateTag(CACHE_TAG_USERS, 'max');
 }

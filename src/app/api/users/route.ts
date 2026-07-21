@@ -2,7 +2,7 @@ import { auth } from '@/auth/auth-core';
 import { Prisma } from '@/generated/prisma/client';
 import { CredentialCreationRequestSchema } from '@/schema/api-schema';
 import { parseUserQuery, serializeJsonApi } from '@/schema/entity-serializer';
-import { createDtoUser, findDtoUsers } from '@/utils/db-auth-utils';
+import { createDtoUser, findDtoUsers } from '@/data/db-auth';
 import { acceptsJsonApi, errorMessage, jsonApiDocumentResponse, restErrorResponse } from '@/utils/api-utils';
 import { JsonApiError } from '@jsonapi-serde/server/common';
 import { parseResourceRequest } from '@jsonapi-serde/server/request';

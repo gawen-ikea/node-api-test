@@ -4,7 +4,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/service/db-service';
 import { DtoUser } from '@/schema/db-schema';
 import { CredentialAuthorizeRequestSchema } from '@/schema/api-schema';
-import { authorizeUserByEmailAndPassword, findDtoUserByEmail } from '@/utils/db-auth-utils';
+import { authorizeUserByEmailAndPassword, findDtoUserByEmail } from '@/data/db-auth';
 
 export type ExtendedSessionUser = DefaultSession['user'] & {
   email: string;

@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     'coverage/**',
     'playwright-report/**',
     'test-results/**',
+    'test/smoketest-results/**',
     'blob-report/**',
     'next-env.d.ts',
   ]),

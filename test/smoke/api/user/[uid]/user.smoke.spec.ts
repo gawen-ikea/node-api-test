@@ -3,24 +3,101 @@ import { expect, test } from '@playwright/test';
 import { createUser, JSON_API_MEDIA_TYPE, signIn, uniqueSmokeEmail } from '../../../support/api';
 
 test.describe('/api/user/[uid] GET tests', () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('let a user with USER role to fetch own profile', async ({ request }) => {
-    // PLACEHOLDER
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('get-member'),
+      name: 'Smoke Get Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(member.id)}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        type: 'users',
+        id: member.id,
+        attributes: {
+          email: member.attributes.email,
+          name: member.attributes.name,
+          role: 'USER',
+        },
+      },
+    });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('let a user with ADMIN role to fetch own profile', async ({ request }) => {
-    // PLACEHOLDER
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('get-admin'),
+      name: 'Smoke Get Admin',
+      role: 'ADMIN',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(administrator.id)}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        type: 'users',
+        id: administrator.id,
+        attributes: {
+          email: administrator.attributes.email,
+          name: administrator.attributes.name,
+          role: 'ADMIN',
+        },
+      },
+    });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('let a user with ADMIN role to fetch other user profile', async ({ request }) => {
-    // PLACEHOLDER
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('get-other-admin'),
+      name: 'Smoke Other Admin',
+      role: 'ADMIN',
+    });
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('get-other-member'),
+      name: 'Smoke Other Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(member.id)}`);
+    expect(response.status()).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        type: 'users',
+        id: member.id,
+        attributes: { email: member.attributes.email, role: 'USER' },
+      },
+    });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('reject a user with USER role to fetch other user profile', async ({ request }) => {
-    // PLACEHOLDER
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('forbidden-member'),
+      name: 'Smoke Forbidden Member',
+      role: 'USER',
+    });
+    const otherUser = await createUser(request, {
+      email: uniqueSmokeEmail('forbidden-other'),
+      name: 'Smoke Forbidden Other',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(otherUser.id)}`);
+    expect(response.status()).toBe(403);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '403', code: 'forbidden' }],
+    });
   });
 
   test('rejects an unauthenticated profile request', async ({ request }) => {
@@ -30,14 +107,46 @@ test.describe('/api/user/[uid] GET tests', () => {
     expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('let a user with USER role to fetch own profile with role field only', async ({ request }) => {
-    // PLACEHOLDER
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('role-field-member'),
+      name: 'Smoke Role Field Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(member.id)}?fields%5Busers%5D=role`);
+    expect(response.status()).toBe(200);
+    const document = (await response.json()) as {
+      data: { id: string; type: string; attributes: Record<string, unknown> };
+    };
+    expect(document.data).toMatchObject({ id: member.id, type: 'users' });
+    expect(document.data.attributes).toEqual({ role: 'USER' });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('rejects a user with USER role to fetch own profile and sort by email', async ({ request }) => {
-    // PLACEHOLDER
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('invalid-sort-member'),
+      name: 'Smoke Invalid Sort Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await request.get(`/api/user/${encodeURIComponent(member.id)}?sort=email`);
+    expect(response.status()).toBe(400);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [
+        {
+          status: '400',
+          code: 'invalid_type',
+          title: "'sort' parameter is not supported",
+          source: { parameter: 'sort' },
+        },
+      ],
+    });
   });
 });
 

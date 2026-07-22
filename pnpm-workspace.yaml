@@ -10,18 +10,4 @@ minimumReleaseAgeExclude:
   - '@prisma/fetch-engine@7.9.0'
   - '@prisma/get-platform@7.9.0'
   - prisma@7.9.0
-onlyBuiltDependencies:
-  - '-'
-  - '3'
-  - '@prisma/engines'
-  - b
-  - e
-  - i
-  - l
-  - prisma
-  - q
-  - r
-  - s
-  - sharp
-  - t
-  - unrs-resolver
+

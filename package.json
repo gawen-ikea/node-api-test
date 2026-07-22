@@ -9,7 +9,7 @@
     "db:push": "prisma db push",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint . --max-warnings=0",
     "prepare": "husky install"
   },
@@ -31,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.10",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
@@ -44,7 +45,7 @@
     "vitest": "^4.1.10"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": "eslint --cache --fix --max-warnings=0",
+    "*.{js,jsx,ts,tsx}": "eslint --cache --fix --max-warnings=0 --no-warn-ignored",
     "*.{ts,tsx,css,md}": "prettier --write"
   }
 }

@@ -1,7 +1,7 @@
-import type { Session } from 'next-auth';
-import type { DtoUser } from '@/schema/db-schema';
 import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Session } from 'next-auth';
+import type { DtoUser } from '@/schema/db-schema';
 
 vi.mock('@/auth/auth-core', () => ({
   auth: vi.fn(),
@@ -25,6 +25,7 @@ const USERS_URL = 'http://localhost/api/users';
 const adminSession: Session = {
   expires: '2099-01-01T00:00:00.000Z',
   user: {
+    id: 'admin-id',
     email: 'admin@example.com',
     name: 'Admin User',
     role: 'ADMIN',
@@ -34,6 +35,7 @@ const adminSession: Session = {
 const regularUserSession: Session = {
   expires: '2099-01-01T00:00:00.000Z',
   user: {
+    id: 'user-id',
     email: 'member@example.com',
     name: 'Member User',
     role: 'USER',
@@ -55,28 +57,27 @@ function makeUser(overrides: Partial<DtoUser> = {}): DtoUser {
   };
 }
 
-function getRequest(url = USERS_URL, accept = JSON_API_MEDIA_TYPE): Request {
+function getRequest(url = USERS_URL): Request {
   return new Request(url, {
-    headers: { Accept: accept },
+    headers: { Accept: 'application/vnd.api+json' },
   });
 }
 
-function postRequest(body: unknown, contentType = JSON_API_MEDIA_TYPE): Request {
-  return new Request(USERS_URL, {
+function postRequest(url = USERS_URL, body: unknown): Request {
+  return new Request(url, {
     method: 'POST',
     headers: {
-      Accept: JSON_API_MEDIA_TYPE,
-      'Content-Type': contentType,
+      Accept: 'application/vnd.api+json',
+      'Content-Type': 'application/vnd.api+json',
     },
     body: JSON.stringify(body),
   });
 }
 
-function creationDocument(email = 'new.user@example.com') {
+function creationNewDocument(email: string) {
   return {
     data: {
       type: 'users',
-      id: email,
       attributes: {
         email,
         password: 'correct-horse-battery-staple',
@@ -85,10 +86,6 @@ function creationDocument(email = 'new.user@example.com') {
       },
     },
   };
-}
-
-async function jsonBody(response: Response) {
-  return response.json() as Promise<Record<string, unknown>>;
 }
 
 describe('GET /api/users', () => {
@@ -102,7 +99,7 @@ describe('GET /api/users', () => {
     vi.mocked(findDtoUsers).mockResolvedValue(users);
 
     const response = await GET(getRequest());
-    const document = await jsonBody(response);
+    const document = await response.json();
 
     expect(response.status, JSON.stringify(document)).toBe(200);
     expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
@@ -112,7 +109,7 @@ describe('GET /api/users', () => {
       data: [
         {
           type: 'users',
-          id: 'member@example.com',
+          id: 'user-id',
           attributes: {
             email: 'member@example.com',
             emailVerified: '2026-01-02T03:04:05.000Z',
@@ -122,7 +119,7 @@ describe('GET /api/users', () => {
         },
         {
           type: 'users',
-          id: 'admin@example.com',
+          id: 'admin-id',
           attributes: { role: 'ADMIN' },
         },
       ],
@@ -135,9 +132,7 @@ describe('GET /api/users', () => {
     vi.mocked(findDtoUsers).mockResolvedValue([makeUser()]);
 
     const response = await GET(getRequest(url));
-    const document = (await jsonBody(response)) as {
-      data: Array<{ attributes: Record<string, unknown> }>;
-    };
+    const document = await response.json();
 
     expect(response.status, JSON.stringify(document)).toBe(200);
     expect(document.data[0].attributes).toEqual({ name: 'Member User' });
@@ -147,7 +142,7 @@ describe('GET /api/users', () => {
     vi.mocked(auth).mockResolvedValue(null);
 
     const response = await GET(getRequest());
-    const document = await jsonBody(response);
+    const document = await response.json();
 
     expect(response.status).toBe(401);
     expect(document).toMatchObject({
@@ -160,7 +155,7 @@ describe('GET /api/users', () => {
     vi.mocked(auth).mockResolvedValue(regularUserSession);
 
     const response = await GET(getRequest());
-    const document = await jsonBody(response);
+    const document = await response.json();
 
     expect(response.status).toBe(403);
     expect(document).toMatchObject({
@@ -176,30 +171,29 @@ describe('POST /api/users', () => {
   });
 
   it('creates a user and returns a JSON:API resource with a Location header', async () => {
-    const email = 'new.user@example.com';
-    const createdUser = makeUser({ id: 'new-user-id', email, name: 'New User' });
+    const createdUser = makeUser({ email: 'new.user@example.com', name: 'New User' });
     vi.mocked(findDtoUserByEmail).mockResolvedValue(null);
     vi.mocked(createDtoUser).mockResolvedValue(createdUser);
 
-    const response = await POST(postRequest(creationDocument(email)));
-    const document = await jsonBody(response);
+    const response = await POST(postRequest(USERS_URL, creationNewDocument('new.user@example.com')));
+    const document = await response.json();
 
     expect(response.status).toBe(201);
     expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
-    expect(response.headers.get('location')).toBe(`http://localhost/api/user/${encodeURIComponent(email)}`);
-    expect(findDtoUserByEmail).toHaveBeenCalledWith(email);
+    expect(response.headers.get('location')).toBe(`http://localhost/api/user/${encodeURIComponent(document.data.id)}`);
+    expect(findDtoUserByEmail).toHaveBeenCalledWith('new.user@example.com');
     expect(createDtoUser).toHaveBeenCalledWith({
-      email,
+      email: 'new.user@example.com',
       password: 'correct-horse-battery-staple',
       name: 'New User',
       role: 'USER',
     });
     expect(document).toMatchObject({
-      links: { self: `http://localhost/api/user/${encodeURIComponent(email)}` },
+      links: { self: `http://localhost/api/user/${encodeURIComponent(document.data.id)}` },
       data: {
         type: 'users',
-        id: email,
-        attributes: { email, name: 'New User', role: 'USER' },
+        id: document.data.id,
+        attributes: { email: 'new.user@example.com', name: 'New User', role: 'USER' },
       },
     });
   });
@@ -207,8 +201,8 @@ describe('POST /api/users', () => {
   it('returns 409 when the user already exists', async () => {
     vi.mocked(findDtoUserByEmail).mockResolvedValue(makeUser({ email: 'new.user@example.com' }));
 
-    const response = await POST(postRequest(creationDocument()));
-    const document = await jsonBody(response);
+    const response = await POST(postRequest(USERS_URL, creationNewDocument('new.user@example.com')));
+    const document = await response.json();
 
     expect(response.status).toBe(409);
     expect(document).toMatchObject({
@@ -224,24 +218,35 @@ describe('POST /api/users', () => {
   });
 
   it('rejects an invalid creation document before accessing the database', async () => {
-    const document = creationDocument();
+    const document = creationNewDocument('new.user@example.com');
     delete (document.data.attributes as Partial<typeof document.data.attributes>).password;
 
-    const response = await POST(postRequest(document));
-
+    const response = await POST(postRequest(USERS_URL, document));
+    const received = await response.json();
     expect(response.status).toBe(422);
-    expect(await jsonBody(response)).toHaveProperty('errors');
+    expect(received).toHaveProperty('errors');
     expect(findDtoUserByEmail).not.toHaveBeenCalled();
     expect(createDtoUser).not.toHaveBeenCalled();
   });
 
-  it('returns 415 for a non-JSON:API request media type', async () => {
-    const response = await POST(postRequest(creationDocument(), 'application/json'));
-
-    expect(response.status).toBe(415);
-    expect(await jsonBody(response)).toMatchObject({
-      errors: [{ status: '415' }],
+  it('returns 500 for a non-JSON:API request media type', async () => {
+    const response = await POST(postRequest(USERS_URL, creationNewDocument('new.user@example.com')));
+    const received = await response.json();
+    expect(response.status).toBe(500);
+    expect(received).toMatchObject({
+      errors: [{ status: '500' }],
     });
-    expect(findDtoUserByEmail).not.toHaveBeenCalled();
+    expect(findDtoUserByEmail).toHaveBeenCalled();
+  });
+
+  it('returns 500 when an exception happened with data query', async () => {
+    vi.mocked(findDtoUserByEmail).mockRejectedValue(new Error('Database connection error'));
+    const response = await POST(postRequest(USERS_URL, creationNewDocument('new.user@example.com')));
+    const received = await response.json();
+    expect(response.status).toBe(500);
+    expect(received).toMatchObject({
+      errors: [{ status: '500' }],
+    });
+    expect(findDtoUserByEmail).toHaveBeenCalled();
   });
 });

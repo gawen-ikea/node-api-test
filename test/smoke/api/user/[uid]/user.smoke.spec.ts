@@ -2,7 +2,27 @@ import { expect, test } from '@playwright/test';
 
 import { createUser, JSON_API_MEDIA_TYPE, signIn, uniqueSmokeEmail } from '../../../support/api';
 
-test.describe('/api/user/[uid] smoke tests', () => {
+test.describe('/api/user/[uid] GET tests', () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('let a user with USER role to fetch own profile', async ({ request }) => {
+    // PLACEHOLDER
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('let a user with ADMIN role to fetch own profile', async ({ request }) => {
+    // PLACEHOLDER
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('let a user with ADMIN role to fetch other user profile', async ({ request }) => {
+    // PLACEHOLDER
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('reject a user with USER role to fetch other user profile', async ({ request }) => {
+    // PLACEHOLDER
+  });
+
   test('rejects an unauthenticated profile request', async ({ request }) => {
     const response = await request.get('/api/user/nonexistent-smoke-user');
 
@@ -10,6 +30,18 @@ test.describe('/api/user/[uid] smoke tests', () => {
     expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('let a user with USER role to fetch own profile with role field only', async ({ request }) => {
+    // PLACEHOLDER
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  test('rejects a user with USER role to fetch own profile and sort by email', async ({ request }) => {
+    // PLACEHOLDER
+  });
+});
+
+test.describe('/api/user/[uid] PATCH tests', () => {
   test('lets a member read and update only their own profile', async ({ request }) => {
     const member = await createUser(request, {
       email: uniqueSmokeEmail('member'),
@@ -60,7 +92,9 @@ test.describe('/api/user/[uid] smoke tests', () => {
       },
     });
   });
+});
 
+test.describe('/api/user/[uid] DELETE tests', () => {
   test('lets an administrator delete another user', async ({ request }) => {
     const administrator = await createUser(request, {
       email: uniqueSmokeEmail('delete-admin'),

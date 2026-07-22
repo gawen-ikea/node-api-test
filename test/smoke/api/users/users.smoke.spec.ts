@@ -29,9 +29,31 @@ type UsersCollectionDocument = {
 };
 
 test.describe('/api/users POST tests', () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('create a user with USER role and a user with ADMIN role', async ({ request }) => {
-    // PLACEHOLDER
+    const [member, administrator] = await Promise.all([
+      createUser(request, {
+        email: uniqueSmokeEmail('create-member'),
+        name: 'Smoke Create Member',
+        role: 'USER',
+      }),
+      createUser(request, {
+        email: uniqueSmokeEmail('create-admin'),
+        name: 'Smoke Create Admin',
+        role: 'ADMIN',
+      }),
+    ]);
+
+    expect(member).toMatchObject({
+      type: 'users',
+      attributes: { role: 'USER' },
+    });
+    expect(member.id).toBeTruthy();
+    expect(administrator).toMatchObject({
+      type: 'users',
+      attributes: { role: 'ADMIN' },
+    });
+    expect(administrator.id).toBeTruthy();
+    expect(administrator.id).not.toBe(member.id);
   });
 
   test('creates a user and rejects a duplicate email', async ({ request }) => {
@@ -67,9 +89,73 @@ test.describe('/api/users POST tests', () => {
     });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  test('create a user with one charactor name, or missing other fields', async ({ request }) => {
-    // PLACEHOLDER
+  test('rejects a one-character name and missing required fields', async ({ request }) => {
+    const email = uniqueSmokeEmail('invalid-create');
+    const invalidDocuments: Array<{
+      label: string;
+      attributes: Record<string, unknown>;
+      expectedCode: string;
+      expectedPointer: string;
+    }> = [
+      {
+        label: 'one-character name',
+        attributes: { email, password: SMOKE_PASSWORD, name: 'A', role: 'USER' },
+        expectedCode: 'too_small',
+        expectedPointer: '/data/attributes/name',
+      },
+      {
+        label: 'missing email',
+        attributes: { password: SMOKE_PASSWORD, name: 'Smoke Missing Email', role: 'USER' },
+        expectedCode: 'invalid_type',
+        expectedPointer: '/data/attributes/email',
+      },
+      {
+        label: 'missing password',
+        attributes: { email, name: 'Smoke Missing Password', role: 'USER' },
+        expectedCode: 'invalid_type',
+        expectedPointer: '/data/attributes/password',
+      },
+      {
+        label: 'missing name',
+        attributes: { email, password: SMOKE_PASSWORD, role: 'USER' },
+        expectedCode: 'invalid_type',
+        expectedPointer: '/data/attributes/name',
+      },
+      {
+        label: 'missing role',
+        attributes: { email, password: SMOKE_PASSWORD, name: 'Smoke Missing Role' },
+        expectedCode: 'invalid_value',
+        expectedPointer: '/data/attributes/role',
+      },
+    ];
+
+    for (const invalidDocument of invalidDocuments) {
+      await test.step(invalidDocument.label, async () => {
+        const response = await request.post('/api/users', {
+          headers: {
+            'Content-Type': JSON_API_MEDIA_TYPE,
+          },
+          data: {
+            data: {
+              type: 'users',
+              attributes: invalidDocument.attributes,
+            },
+          },
+        });
+
+        expect(response.status()).toBe(422);
+        expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+        await expect(response.json()).resolves.toMatchObject({
+          errors: [
+            {
+              status: '422',
+              code: invalidDocument.expectedCode,
+              source: { pointer: invalidDocument.expectedPointer },
+            },
+          ],
+        });
+      });
+    }
   });
 });
 

@@ -24,9 +24,52 @@ import { DELETE, GET, PATCH } from '@/app/api/user/[uid]/route';
 const auth = nextAuth as unknown as MockedFunction<() => Promise<Session | null>>;
 
 const JSON_API_MEDIA_TYPE = 'application/vnd.api+json';
-const TARGET_EMAIL = 'member@example.com';
-const TARGET_ID = 'user-id-0';
-const TARGET_URL = `http://localhost/api/user/${TARGET_ID}`;
+
+const SAMPLE_USER_EMAIL = 'member@example.com';
+const SAMPLE_USER_ID = 'sample-user-id';
+const SAMPLE_USER_URL = `http://localhost/api/user/${SAMPLE_USER_ID}`;
+const SAMPLE_USER: DtoUser = {
+  id: SAMPLE_USER_ID,
+  email: SAMPLE_USER_EMAIL,
+  name: 'Member User',
+  emailVerified: null,
+  role: 'USER',
+  image: null,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+
+const SAMPLE_ADMIN_EMAIL = 'admin@example.com';
+const SAMPLE_ADMIN_ID = 'admin-user-id';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SAMPLE_ADMIN_URL = `http://localhost/api/user/${SAMPLE_ADMIN_ID}`;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SAMPLE_ADMIN: DtoUser = {
+  id: SAMPLE_ADMIN_ID,
+  email: SAMPLE_ADMIN_EMAIL,
+  name: 'Admin User',
+  emailVerified: null,
+  role: 'ADMIN',
+  image: null,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+
+const SAMPLE_OTHER_EMAIL = 'other@example.com';
+const SAMPLE_OTHER_ID = 'other-user-id';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SAMPLE_OTHER_URL = `http://localhost/api/user/${SAMPLE_OTHER_ID}`;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SAMPLE_OTHER: DtoUser = {
+  id: SAMPLE_OTHER_ID,
+  email: SAMPLE_OTHER_EMAIL,
+  name: 'Other User',
+  emailVerified: null,
+  role: 'USER',
+  image: null,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+};
 
 function session(id: string, email: string, role: Role = 'USER'): Session {
   return {
@@ -43,20 +86,13 @@ function session(id: string, email: string, role: Role = 'USER'): Session {
 
 function makeUser(overrides: Partial<DtoUser> = {}): DtoUser {
   return {
-    id: TARGET_ID,
-    email: TARGET_EMAIL,
-    name: 'Member User',
-    emailVerified: null,
-    role: 'USER',
-    image: null,
-    createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    ...SAMPLE_USER,
     ...overrides,
   };
 }
 
-function request(method: 'GET' | 'PATCH' | 'DELETE', body?: unknown): Request {
-  return new Request(TARGET_URL, {
+function request(url: string, method: 'GET' | 'PATCH' | 'DELETE', body?: unknown): Request {
+  return new Request(url, {
     method,
     headers: {
       Accept: JSON_API_MEDIA_TYPE,
@@ -66,11 +102,11 @@ function request(method: 'GET' | 'PATCH' | 'DELETE', body?: unknown): Request {
   });
 }
 
-function routeContext(uid = TARGET_ID) {
+function routeContext(uid = SAMPLE_USER_ID) {
   return { params: Promise.resolve({ uid }) };
 }
 
-function modificationDocument(attributes: { name?: string; role?: 'USER' | 'ADMIN' }, id = TARGET_ID) {
+function modificationDocument(attributes: { name?: string; role?: 'USER' | 'ADMIN' }, id = SAMPLE_USER_ID) {
   return {
     data: {
       type: 'users',
@@ -86,63 +122,63 @@ describe('GET /api/user/[uid]', () => {
   });
 
   it('returns a user profile to its owner with USER role', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
     vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
 
-    const response = await GET(request('GET'), routeContext(TARGET_ID));
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext(SAMPLE_USER_ID));
     const document = await response.json();
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
-    expect(findDtoUserById).toHaveBeenCalledWith(TARGET_ID);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
     expect(document).toMatchObject({
-      links: { self: TARGET_URL },
+      links: { self: SAMPLE_USER_URL },
       data: {
         type: 'users',
-        id: TARGET_ID,
-        attributes: { email: TARGET_EMAIL, name: 'Member User', role: 'USER' },
+        id: SAMPLE_USER_ID,
+        attributes: { email: SAMPLE_USER_EMAIL, name: 'Member User', role: 'USER' },
       },
     });
   });
 
   it('returns a user profile to its owner with ADMIN role', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'ADMIN'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'ADMIN'));
     vi.mocked(findDtoUserById).mockResolvedValue(
       makeUser({
         role: 'ADMIN',
       }),
     );
 
-    const response = await GET(request('GET'), routeContext(TARGET_ID));
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext(SAMPLE_USER_ID));
     const document = await response.json();
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
-    expect(findDtoUserById).toHaveBeenCalledWith(TARGET_ID);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
     expect(document).toMatchObject({
-      links: { self: TARGET_URL },
+      links: { self: SAMPLE_USER_URL },
       data: {
         type: 'users',
-        id: TARGET_ID,
-        attributes: { email: TARGET_EMAIL, name: 'Member User', role: 'ADMIN' },
+        id: SAMPLE_USER_ID,
+        attributes: { email: SAMPLE_USER_EMAIL, name: 'Member User', role: 'ADMIN' },
       },
     });
   });
 
   it('allows an administrator to retrieve another user', async () => {
-    vi.mocked(auth).mockResolvedValue(session('admin-user-0', 'admin@example.com', 'ADMIN'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
     vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
 
-    const response = await GET(request('GET'), routeContext(TARGET_ID));
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext(SAMPLE_USER_ID));
 
     expect(response.status).toBe(200);
-    expect(findDtoUserById).toHaveBeenCalledWith(TARGET_ID);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
   });
 
   it('returns 401 when unauthenticated', async () => {
     vi.mocked(auth).mockResolvedValue(null);
 
-    const response = await GET(request('GET'), routeContext());
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext());
     const document = await response.json();
 
     expect(response.status).toBe(401);
@@ -153,9 +189,9 @@ describe('GET /api/user/[uid]', () => {
   });
 
   it('returns 403 when a regular user requests another profile', async () => {
-    vi.mocked(auth).mockResolvedValue(session('other-user-id', 'other@example.com', 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_OTHER_ID, SAMPLE_OTHER_EMAIL, 'USER'));
 
-    const response = await GET(request('GET'), routeContext());
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext());
     const document = await response.json();
 
     expect(response.status).toBe(403);
@@ -166,10 +202,10 @@ describe('GET /api/user/[uid]', () => {
   });
 
   it('returns 404 when the target user does not exist', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
     vi.mocked(findDtoUserById).mockResolvedValue(null);
 
-    const response = await GET(request('GET'), routeContext());
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext(SAMPLE_USER_ID));
     const document = await response.json();
 
     expect(response.status).toBe(404);
@@ -185,40 +221,43 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('allows a user to update their own name', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
     vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
     vi.mocked(modifyUserById).mockResolvedValue(makeUser({ name: 'Updated Name' }));
 
     const response = await PATCH(
-      request('PATCH', modificationDocument({ name: 'Updated Name' })),
-      routeContext(TARGET_ID),
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' })),
+      routeContext(SAMPLE_USER_ID),
     );
     const document = await response.json();
 
     expect(response.status).toBe(200);
-    expect(findDtoUserById).toHaveBeenCalledWith(TARGET_ID);
-    expect(modifyUserById).toHaveBeenCalledWith(TARGET_ID, {
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(modifyUserById).toHaveBeenCalledWith(SAMPLE_USER_ID, {
       name: 'Updated Name',
       role: undefined,
     });
     expect(document).toMatchObject({
       data: {
         type: 'users',
-        id: TARGET_ID,
+        id: SAMPLE_USER_ID,
         attributes: { name: 'Updated Name' },
       },
     });
   });
 
   it('allows an administrator to update another user role', async () => {
-    vi.mocked(auth).mockResolvedValue(session('admin-user-0', 'admin@example.com', 'ADMIN'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
     vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
     vi.mocked(modifyUserById).mockResolvedValue(makeUser({ role: 'ADMIN' }));
 
-    const response = await PATCH(request('PATCH', modificationDocument({ role: 'ADMIN' })), routeContext(TARGET_ID));
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ role: 'ADMIN' })),
+      routeContext(SAMPLE_USER_ID),
+    );
 
     expect(response.status).toBe(200);
-    expect(modifyUserById).toHaveBeenCalledWith(TARGET_ID, {
+    expect(modifyUserById).toHaveBeenCalledWith(SAMPLE_USER_ID, {
       name: undefined,
       role: 'ADMIN',
     });
@@ -228,8 +267,8 @@ describe('PATCH /api/user/[uid]', () => {
     vi.mocked(auth).mockResolvedValue(null);
 
     const response = await PATCH(
-      request('PATCH', modificationDocument({ name: 'Updated Name' })),
-      routeContext(TARGET_ID),
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' })),
+      routeContext(SAMPLE_USER_ID),
     );
 
     expect(response.status).toBe(401);
@@ -237,9 +276,12 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('returns 403 when a regular user updates another profile', async () => {
-    vi.mocked(auth).mockResolvedValue(session('other-user-0', 'other@example.com', 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_OTHER_ID, SAMPLE_OTHER_EMAIL, 'USER'));
 
-    const response = await PATCH(request('PATCH', modificationDocument({ name: 'Updated Name' })), routeContext());
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' })),
+      routeContext(SAMPLE_USER_ID),
+    );
 
     expect(response.status).toBe(403);
     expect(findDtoUserById).not.toHaveBeenCalled();
@@ -247,10 +289,10 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('returns 400 when the document id does not match the URL', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
 
     const response = await PATCH(
-      request('PATCH', modificationDocument({ name: 'Updated Name' }, 'different@example.com')),
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' }, 'different@example.com')),
       routeContext(),
     );
     const document = await response.json();
@@ -263,9 +305,12 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('returns 403 when a regular user attempts to change their role', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
 
-    const response = await PATCH(request('PATCH', modificationDocument({ role: 'ADMIN' })), routeContext());
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ role: 'ADMIN' })),
+      routeContext(SAMPLE_USER_ID),
+    );
     const document = await response.json();
 
     expect(response.status).toBe(403);
@@ -276,10 +321,13 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('returns 404 when the target user does not exist', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
     vi.mocked(findDtoUserById).mockResolvedValue(null);
 
-    const response = await PATCH(request('PATCH', modificationDocument({ name: 'Updated Name' })), routeContext());
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' })),
+      routeContext(),
+    );
     const document = await response.json();
 
     expect(response.status).toBe(404);
@@ -290,9 +338,12 @@ describe('PATCH /api/user/[uid]', () => {
   });
 
   it('rejects an empty attributes object', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
 
-    const response = await PATCH(request('PATCH', modificationDocument({})), routeContext());
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({})),
+      routeContext(SAMPLE_USER_ID),
+    );
     const document = await response.json();
 
     expect(response.status).toBe(422);
@@ -307,39 +358,39 @@ describe('DELETE /api/user/[uid]', () => {
   });
 
   it('allows an administrator to delete another user', async () => {
-    vi.mocked(auth).mockResolvedValue(session('admin-user-0', 'admin@example.com', 'ADMIN'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
     vi.mocked(deleteUserById).mockResolvedValue();
 
-    const response = await DELETE(request('DELETE'), routeContext(TARGET_ID));
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
     const document = await response.text();
 
     expect(response.status).toBe(204);
     expect(document).toBe('');
-    expect(deleteUserById).toHaveBeenCalledWith(TARGET_ID);
+    expect(deleteUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
   });
 
   it('returns 401 when unauthenticated', async () => {
     vi.mocked(auth).mockResolvedValue(null);
 
-    const response = await DELETE(request('DELETE'), routeContext());
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext());
 
     expect(response.status).toBe(401);
     expect(deleteUserById).not.toHaveBeenCalled();
   });
 
   it('returns 403 when a regular user tries to delete a user', async () => {
-    vi.mocked(auth).mockResolvedValue(session('other-user-0', 'other@example.com', 'USER'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_OTHER_ID, SAMPLE_OTHER_EMAIL, 'USER'));
 
-    const response = await DELETE(request('DELETE'), routeContext());
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext());
 
     expect(response.status).toBe(403);
     expect(deleteUserById).not.toHaveBeenCalled();
   });
 
   it('returns 403 when an administrator tries to delete their own account', async () => {
-    vi.mocked(auth).mockResolvedValue(session(TARGET_ID, TARGET_EMAIL, 'ADMIN'));
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'ADMIN'));
 
-    const response = await DELETE(request('DELETE'), routeContext());
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
 
     expect(response.status).toBe(403);
     expect(deleteUserById).not.toHaveBeenCalled();

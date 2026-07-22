@@ -195,6 +195,73 @@ describe('GET /api/users', () => {
     expect(findDtoUsers).not.toHaveBeenCalled();
   });
 
+  it('returns 200 when applying a page number 300', async () => {
+    const url = `${USERS_URL}?page%5Bnumber%5D=300`;
+    vi.mocked(auth).mockResolvedValue(adminSession);
+    vi.mocked(findDtoUsers).mockResolvedValue([]);
+    vi.mocked(countDtoUsers).mockResolvedValue(0);
+
+    const response = await GET(getRequest(url));
+    const document = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUsers).toHaveBeenCalledWith({
+      filter: {},
+      sort: [],
+      page: { number: 300, size: 20 },
+    });
+    expect(countDtoUsers).toHaveBeenCalledWith({ filter: {} });
+    expect(document.meta.page).toEqual({ number: 300, size: 20, total: 0, totalPages: 0 });
+    expect(document.data).toEqual([]);
+    expect(new URL(document.links.prev).searchParams.get('page[number]')).toBe('299');
+    expect(document.links.next).toBeNull();
+  });
+
+  it('returns 400 when sorting by a field that does not exist', async () => {
+    const url = `${USERS_URL}?sort=doesNotExist`;
+    vi.mocked(auth).mockResolvedValue(adminSession);
+
+    const response = await GET(getRequest(url));
+    const document = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '400',
+          code: 'invalid_sort_field',
+          source: { parameter: 'sort' },
+        },
+      ],
+    });
+    expect(findDtoUsers).not.toHaveBeenCalled();
+    expect(countDtoUsers).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when filtering by a role that does not exist', async () => {
+    const url = `${USERS_URL}?filter%5Brole%5D=SUPER_ADMIN`;
+    vi.mocked(auth).mockResolvedValue(adminSession);
+
+    const response = await GET(getRequest(url));
+    const document = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '400',
+          code: 'invalid_value',
+          source: { parameter: 'filter[role]' },
+        },
+      ],
+    });
+    expect(findDtoUsers).not.toHaveBeenCalled();
+    expect(countDtoUsers).not.toHaveBeenCalled();
+  });
+
   it('returns 401 when there is no authenticated user', async () => {
     vi.mocked(auth).mockResolvedValue(null);
 
@@ -219,6 +286,32 @@ describe('GET /api/users', () => {
       errors: [{ status: '403', code: 'forbidden', title: 'Forbidden' }],
     });
     expect(findDtoUsers).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when an exception happens during quering database', async () => {
+    vi.mocked(auth).mockResolvedValue(adminSession);
+    vi.mocked(findDtoUsers).mockRejectedValue(new Error('Database connection error'));
+
+    const response = await GET(getRequest());
+    const document = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '500',
+          code: 'internal_server_error',
+          title: 'Internal Server Error',
+        },
+      ],
+    });
+    expect(findDtoUsers).toHaveBeenCalledWith({
+      filter: {},
+      sort: [],
+      page: { number: 1, size: 20 },
+    });
+    expect(countDtoUsers).not.toHaveBeenCalled();
   });
 });
 

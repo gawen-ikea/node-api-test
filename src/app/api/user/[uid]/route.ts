@@ -1,9 +1,8 @@
-import { nanoid } from 'nanoid';
 import { JsonApiError } from '@jsonapi-serde/server/common';
 import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 import { auth, ExtendedSessionUser } from '@/auth/auth-core';
-import { apiJsonErrorResponse, apiJsonDocumentResponse, errorMessage } from '@/utils/api-utils';
+import { apiJsonErrorResponse, apiJsonDocumentResponse, standardErrorResponse } from '@/utils/api-utils';
 import { deleteUserById, findDtoUserById, modifyUserById } from '@/data/db-auth';
 import { parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
 
@@ -28,16 +27,7 @@ export async function userRouteHandler({ request, params, routeFunc }: UserRoute
 
     return await routeFunc({ currentUser, request, uid });
   } catch (error: unknown) {
-    if (error instanceof Error || error instanceof JsonApiError) {
-      return apiJsonErrorResponse(error as Error | JsonApiError);
-    } else {
-      const errorId = nanoid();
-      console.error(`error[${errorId}] Unexpected error during authentication: ${errorMessage(error)}`);
-      return apiJsonErrorResponse(new Error('Unexpected error during authentication'), {
-        status: 500,
-        detail: `errorId: ${errorId}`,
-      });
-    }
+    return standardErrorResponse(error);
   }
 }
 

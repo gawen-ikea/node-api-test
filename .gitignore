@@ -151,3 +151,4 @@ vite.config.ts.timestamp-*
 
 generated
 .idea
+smoketest-results

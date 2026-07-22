@@ -363,4 +363,76 @@ test.describe('/api/user/[uid] DELETE tests', () => {
     const deletedProfileResponse = await request.get(`/api/user/${encodeURIComponent(member.id)}`);
     expect(deletedProfileResponse.status()).toBe(404);
   });
+
+  test('reject an administrator delete own profile', async ({ request }) => {
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('self-delete-admin'),
+      name: 'Smoke Self Delete Admin',
+      role: 'ADMIN',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await request.delete(`/api/user/${encodeURIComponent(administrator.id)}`);
+    expect(response.status()).toBe(403);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '403', code: 'forbidden' }],
+    });
+
+    const profileResponse = await request.get(`/api/user/${encodeURIComponent(administrator.id)}`);
+    expect(profileResponse.status()).toBe(200);
+  });
+
+  test('reject a member to delete its own profile', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('self-delete-member'),
+      name: 'Smoke Self Delete Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await request.delete(`/api/user/${encodeURIComponent(member.id)}`);
+    expect(response.status()).toBe(403);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '403', code: 'forbidden' }],
+    });
+
+    const profileResponse = await request.get(`/api/user/${encodeURIComponent(member.id)}`);
+    expect(profileResponse.status()).toBe(200);
+  });
+
+  test('reject an unauthenticated user to delete any profile', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('unauthenticated-delete'),
+      name: 'Smoke Unauthenticated Delete',
+      role: 'USER',
+    });
+
+    const response = await request.delete(`/api/user/${encodeURIComponent(member.id)}`);
+    expect(response.status()).toBe(401);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '401', code: 'unauthorized' }],
+    });
+  });
+
+  test('reject an administrator delete non-existing profile', async ({ request }) => {
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('missing-delete-admin'),
+      name: 'Smoke Missing Delete Admin',
+      role: 'ADMIN',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await request.delete('/api/user/nonexistent-smoke-user');
+    expect(response.status()).toBe(404);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '404', code: 'not_found' }],
+    });
+  });
 });

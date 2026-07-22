@@ -22,6 +22,11 @@ lib-cov
 coverage
 *.lcov
 
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+
 # nyc test coverage
 .nyc_output
 
@@ -141,3 +146,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+/src/generated/prisma
+
+generated
+.idea
+smoketest-results
+next-env.d.ts

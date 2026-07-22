@@ -1,0 +1,42 @@
+#
+# On Mac Apple Silicon, use the following command to run the container:
+# container run -d \
+#   --name nat-db-dev \
+#   -e POSTGRES_USER="nat_default_user" \
+#   -e POSTGRES_PASSWORD="nat_default_password" \
+#   -e POSTGRES_DB="nat_default_db" \
+#   -p "-5432:5432" \
+#   -v nat-db-dev-data:/var/lib/postgresql \
+#   postgres:18-alpine
+
+name: nat-db-dev
+
+volumes:
+  nat-db-dev-data:
+
+networks:
+  default:
+    name: nat-dev
+
+services:
+  nat-db-dev:
+    image: postgres:18-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${NAT_DB_USER:-nat_default_user}
+      POSTGRES_PASSWORD: ${NAT_DB_PASSWORD:-nat_default_password}
+      POSTGRES_DB: ${NAT_DB_NAME:-nat_default_db}
+
+    ports:
+      - "127.0.0.1:${NAT_DB_PORT:-5432}:5432"
+
+    volumes:
+      - nat-db-dev-data:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NAT_DB_USER:-nat_default_user} -d ${NAT_DB_NAME:-nat_default_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

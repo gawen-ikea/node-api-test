@@ -379,14 +379,19 @@ describe('POST /api/users', () => {
     expect(createDtoUser).not.toHaveBeenCalled();
   });
 
-  it('returns 500 for a non-JSON:API request media type', async () => {
+  it('returns 500 when createDtoUser throws', async () => {
+    vi.mocked(findDtoUserByEmail).mockResolvedValue(null);
+    vi.mocked(createDtoUser).mockRejectedValue(new Error('Database connection error'));
+
     const response = await POST(postRequest(USERS_URL, creationNewDocument('new.user@example.com')));
     const received = await response.json();
+
     expect(response.status).toBe(500);
     expect(received).toMatchObject({
       errors: [{ status: '500' }],
     });
     expect(findDtoUserByEmail).toHaveBeenCalled();
+    expect(createDtoUser).toHaveBeenCalled();
   });
 
   it('returns 500 when an exception happened with data query', async () => {

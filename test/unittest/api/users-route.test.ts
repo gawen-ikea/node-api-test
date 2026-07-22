@@ -8,13 +8,14 @@ vi.mock('@/auth/auth-core', () => ({
 }));
 
 vi.mock('@/data/db-auth', () => ({
+  countDtoUsers: vi.fn(),
   createDtoUser: vi.fn(),
   findDtoUserByEmail: vi.fn(),
   findDtoUsers: vi.fn(),
 }));
 
 import { auth as nextAuth } from '@/auth/auth-core';
-import { createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
+import { countDtoUsers, createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
 import { GET, POST } from '@/app/api/users/route';
 
 const auth = nextAuth as unknown as MockedFunction<() => Promise<Session | null>>;
@@ -96,7 +97,8 @@ describe('GET /api/users', () => {
   it('returns a JSON:API user collection for an administrator', async () => {
     const users = [makeUser(), makeUser({ id: 'admin-id', email: 'admin@example.com', role: 'ADMIN' })];
     vi.mocked(auth).mockResolvedValue(adminSession);
-    vi.mocked(findDtoUsers).mockResolvedValue({ users, total: 2 });
+    vi.mocked(findDtoUsers).mockResolvedValue(users);
+    vi.mocked(countDtoUsers).mockResolvedValue(2);
 
     const response = await GET(getRequest());
     const document = await response.json();
@@ -108,6 +110,7 @@ describe('GET /api/users', () => {
       sort: [],
       page: { number: 1, size: 20 },
     });
+    expect(countDtoUsers).toHaveBeenCalledWith({ filter: {} });
     expect(document).toMatchObject({
       links: { self: USERS_URL },
       meta: {
@@ -136,7 +139,8 @@ describe('GET /api/users', () => {
   it('applies a JSON:API sparse fieldset', async () => {
     const url = `${USERS_URL}?fields%5Busers%5D=name`;
     vi.mocked(auth).mockResolvedValue(adminSession);
-    vi.mocked(findDtoUsers).mockResolvedValue({ users: [makeUser()], total: 1 });
+    vi.mocked(findDtoUsers).mockResolvedValue([makeUser()]);
+    vi.mocked(countDtoUsers).mockResolvedValue(1);
 
     const response = await GET(getRequest(url));
     const document = await response.json();
@@ -149,7 +153,8 @@ describe('GET /api/users', () => {
     const url = `${USERS_URL}?filter%5Brole%5D=ADMIN&sort=-createdAt,name&page%5Bnumber%5D=2&page%5Bsize%5D=1`;
     const users = [makeUser({ id: 'admin-id', email: 'admin@example.com', role: 'ADMIN' })];
     vi.mocked(auth).mockResolvedValue(adminSession);
-    vi.mocked(findDtoUsers).mockResolvedValue({ users, total: 3 });
+    vi.mocked(findDtoUsers).mockResolvedValue(users);
+    vi.mocked(countDtoUsers).mockResolvedValue(3);
 
     const response = await GET(getRequest(url));
     const document = await response.json();
@@ -163,6 +168,7 @@ describe('GET /api/users', () => {
       ],
       page: { number: 2, size: 1 },
     });
+    expect(countDtoUsers).toHaveBeenCalledWith({ filter: { role: 'ADMIN' } });
     expect(document.meta.page).toEqual({ number: 2, size: 1, total: 3, totalPages: 3 });
 
     expect(new URL(document.links.first).searchParams.get('page[number]')).toBe('1');

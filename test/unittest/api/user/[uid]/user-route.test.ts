@@ -104,7 +104,7 @@ function routeContext(uid = SAMPLE_USER_ID) {
   return { params: Promise.resolve({ uid }) };
 }
 
-function modificationDocument(attributes: { name?: string; role?: 'USER' | 'ADMIN' }, id = SAMPLE_USER_ID) {
+function modificationDocument(attributes: { name?: string; role?: string }, id = SAMPLE_USER_ID) {
   return {
     data: {
       type: 'users',
@@ -349,6 +349,54 @@ describe('PATCH /api/user/[uid]', () => {
     });
   });
 
+  it('returns 422 when a user to update their own name with empty string', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: '' })),
+      routeContext(SAMPLE_USER_ID),
+    );
+    const document = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '422',
+          code: 'too_small',
+          source: { pointer: '/data/attributes/name' },
+        },
+      ],
+    });
+    expect(findDtoUserById).not.toHaveBeenCalled();
+    expect(modifyUserById).not.toHaveBeenCalled();
+  });
+
+  it('returns 422 when a user to update their own name with one character', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'A' })),
+      routeContext(SAMPLE_USER_ID),
+    );
+    const document = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '422',
+          code: 'too_small',
+          source: { pointer: '/data/attributes/name' },
+        },
+      ],
+    });
+    expect(findDtoUserById).not.toHaveBeenCalled();
+    expect(modifyUserById).not.toHaveBeenCalled();
+  });
+
   it('allows an administrator to update another user role', async () => {
     vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
     vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
@@ -364,6 +412,30 @@ describe('PATCH /api/user/[uid]', () => {
       name: undefined,
       role: 'ADMIN',
     });
+  });
+
+  it('returns 422 when an administrator to update another user role with INVALID ROLE', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
+
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ role: 'INVALID' })),
+      routeContext(SAMPLE_USER_ID),
+    );
+    const document = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '422',
+          code: 'invalid_value',
+          source: { pointer: '/data/attributes/role' },
+        },
+      ],
+    });
+    expect(findDtoUserById).not.toHaveBeenCalled();
+    expect(modifyUserById).not.toHaveBeenCalled();
   });
 
   it('returns 401 when unauthenticated', async () => {

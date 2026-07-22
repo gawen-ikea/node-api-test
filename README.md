@@ -71,3 +71,31 @@ curl -i -X POST 'http://localhost:3000/api/users' \
     }
   }'
 ```
+
+## Testing
+
+Run the isolated route-handler unit tests with Vitest:
+
+```bash
+pnpm test:unit
+```
+
+Run the Playwright API smoke suite against the real configured development database:
+
+```bash
+docker compose -f scripts/dev-db/compose.yaml up -d
+pnpm build:prisma
+pnpm db:push
+pnpm test:smoke
+```
+
+Playwright starts the Next.js development server automatically, exercises the API over HTTP, authenticates through Auth.js, and cleans up accounts ending in `@smoke.node-api-test.invalid` before and after the run. The current API-only suite does not require Playwright browser binaries.
+
+Do not run the smoke suite with `NAT_DATABASE_URL` pointing at a production database. The setup and teardown intentionally delete users in the reserved smoke-test email domain.
+
+Run every automated suite or open the last HTML smoke report with:
+
+```bash
+pnpm test:all
+pnpm test:smoke:report
+```

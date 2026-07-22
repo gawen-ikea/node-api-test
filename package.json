@@ -9,6 +9,9 @@
     "db:push": "prisma db push",
     "start": "next start",
     "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:smoke": "playwright test --project=api",
+    "test:smoke:report": "playwright show-report",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --max-warnings=0",
     "prepare": "husky install"
@@ -27,8 +30,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.10",
@@ -38,6 +43,7 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^17.1.0",
+    "pg": "^8.22.0",
     "prettier": "3.9.5",
     "prisma": "^7.9.0",
     "tailwindcss": "^4",

@@ -1,5 +1,4 @@
 import { JsonApiError, type JsonApiDocument } from '@jsonapi-serde/server/common';
-import { NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 
 export function errorMessage(error: unknown): string {
@@ -17,12 +16,6 @@ export function standardErrorResponse(error: unknown): Response {
       detail: `errorId: ${errorId}`,
     });
   }
-}
-
-export function restJsonErrorResponse(status: number, message: Record<string, string>) {
-  return NextResponse.json(message, {
-    status: status,
-  });
 }
 
 export type ApiJsonErrorResponseData = {

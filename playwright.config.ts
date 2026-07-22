@@ -6,9 +6,9 @@ const baseURL = 'http://127.0.0.1:3000';
 
 export default defineConfig({
   testDir: './test/smoke',
-  outputDir: 'test-results',
-  globalSetup: './test/smoke/global-setup.ts',
-  globalTeardown: './test/smoke/global-teardown.ts',
+  outputDir: './test/smoketest-results',
+  globalSetup: './test/smoke/support/global-setup.ts',
+  globalTeardown: './test/smoke/support/global-teardown.ts',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

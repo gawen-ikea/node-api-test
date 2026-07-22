@@ -3,11 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { expect, type APIRequestContext } from '@playwright/test';
 
 import { SMOKE_EMAIL_DOMAIN } from './database';
+import type { Role } from '../../../src/generated/prisma/enums';
 
 export const JSON_API_MEDIA_TYPE = 'application/vnd.api+json';
-export const SMOKE_PASSWORD = 'correct-horse-battery-staple';
-
-export type SmokeUserRole = 'USER' | 'ADMIN';
+export const SMOKE_PASSWORD = 'SmokeTestPassword123!';
 
 export type SmokeUserResource = {
   type: 'users';
@@ -16,7 +15,7 @@ export type SmokeUserResource = {
     email: string;
     emailVerified: string | null;
     name: string;
-    role: SmokeUserRole;
+    role: Role;
   };
 };
 
@@ -41,7 +40,7 @@ export async function createUser(
   options: {
     email: string;
     name: string;
-    role: SmokeUserRole;
+    role: Role;
     password?: string;
   },
 ): Promise<SmokeUserResource> {
@@ -84,8 +83,9 @@ export async function signIn(
   credentials: { email: string; password?: string },
 ): Promise<Required<AuthSession>['user']> {
   const csrfResponse = await request.get('/api/auth/csrf');
-  expect(csrfResponse.status(), await csrfResponse.text()).toBe(200);
-  const { csrfToken } = (await csrfResponse.json()) as { csrfToken: string };
+  const rspText = await csrfResponse.text();
+  expect(csrfResponse.status(), rspText).toBe(200);
+  const { csrfToken } = JSON.parse(rspText) as { csrfToken: string };
   expect(csrfToken).toBeTruthy();
 
   const callbackResponse = await request.post('/api/auth/callback/credentials', {

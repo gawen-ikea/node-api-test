@@ -60,13 +60,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
-    async jwt({ token }) {
+    async jwt({ token, user }) {
+      // On initial sign-in, Credentials() returns a DtoUser which already contains role/email.
+      if (user) {
+        const dtoUser = user as unknown as DtoUser;
+        token.role = dtoUser.role;
+        token.email = dtoUser.email;
+        return token;
+      }
+
+      // Avoid a DB round-trip on every request once the token is populated.
+      if (token.role && token.email) {
+        return token;
+      }
+
       const uid = token.sub;
       if (!uid) {
         return token;
       }
 
-      // If this is the initial sign-in, add user info to the token
       const dtoUser = await findDtoUserById(uid);
       if (!dtoUser) {
         console.warn(`User not found for id: ${uid}`);

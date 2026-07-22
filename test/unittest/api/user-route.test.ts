@@ -28,7 +28,7 @@ const JSON_API_MEDIA_TYPE = 'application/vnd.api+json';
 const SAMPLE_USER_EMAIL = 'member@example.com';
 const SAMPLE_USER_ID = 'sample-user-id';
 const SAMPLE_USER_URL = `http://localhost/api/user/${SAMPLE_USER_ID}`;
-const SAMPLE_USER: DtoUser = {
+const SAMPLE_USER_DTO: DtoUser = {
   id: SAMPLE_USER_ID,
   email: SAMPLE_USER_EMAIL,
   name: 'Member User',
@@ -44,7 +44,7 @@ const SAMPLE_ADMIN_ID = 'admin-user-id';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SAMPLE_ADMIN_URL = `http://localhost/api/user/${SAMPLE_ADMIN_ID}`;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SAMPLE_ADMIN: DtoUser = {
+const SAMPLE_ADMIN_DTO: DtoUser = {
   id: SAMPLE_ADMIN_ID,
   email: SAMPLE_ADMIN_EMAIL,
   name: 'Admin User',
@@ -60,7 +60,7 @@ const SAMPLE_OTHER_ID = 'other-user-id';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SAMPLE_OTHER_URL = `http://localhost/api/user/${SAMPLE_OTHER_ID}`;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const SAMPLE_OTHER: DtoUser = {
+const SAMPLE_OTHER_DTO: DtoUser = {
   id: SAMPLE_OTHER_ID,
   email: SAMPLE_OTHER_EMAIL,
   name: 'Other User',
@@ -86,7 +86,7 @@ function session(id: string, email: string, role: Role = 'USER'): Session {
 
 function makeUser(overrides: Partial<DtoUser> = {}): DtoUser {
   return {
-    ...SAMPLE_USER,
+    ...SAMPLE_USER_DTO,
     ...overrides,
   };
 }
@@ -138,6 +138,90 @@ describe('GET /api/user/[uid]', () => {
         id: SAMPLE_USER_ID,
         attributes: { email: SAMPLE_USER_EMAIL, name: 'Member User', role: 'USER' },
       },
+    });
+  });
+
+  it('returns a user profile to its owner with selected fields', async () => {
+    const url = `${SAMPLE_USER_URL}?fields%5Busers%5D=name,role`;
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+    vi.mocked(findDtoUserById).mockResolvedValue(SAMPLE_USER_DTO);
+
+    const response = await GET(request(url, 'GET'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(document).toMatchObject({
+      links: { self: url },
+      data: {
+        type: 'users',
+        id: SAMPLE_USER_ID,
+        attributes: { name: 'Member User', role: 'USER' },
+      },
+    });
+    expect(document.data.attributes).toEqual({ name: 'Member User', role: 'USER' });
+
+    const nameUrl = `${SAMPLE_USER_URL}?fields%5Busers%5D=name`;
+    const nameRsp = await GET(request(nameUrl, 'GET'), routeContext(SAMPLE_USER_ID));
+    const nameDocument = await nameRsp.json();
+
+    expect(nameRsp.status).toBe(200);
+    expect(nameRsp.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(nameDocument).toMatchObject({
+      links: { self: nameUrl },
+      data: {
+        type: 'users',
+        id: SAMPLE_USER_ID,
+        attributes: { name: 'Member User' },
+      },
+    });
+    expect(nameDocument.data.attributes).toEqual({ name: 'Member User' });
+  });
+
+  it('returns a user profile to its owner with selected fields and non-existing fields', async () => {
+    const url = `${SAMPLE_USER_URL}?fields%5Busers%5D=name,doesNotExist`;
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+    vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
+
+    const response = await GET(request(url, 'GET'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '400',
+          code: 'unknown_resource_field',
+          source: { parameter: 'fields[users]' },
+        },
+      ],
+    });
+  });
+
+  it('returns a user profile to its owner with selected fields and filters', async () => {
+    const url = `${SAMPLE_USER_URL}?fields%5Busers%5D=name&filter%5Brole%5D=USER`;
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+    vi.mocked(findDtoUserById).mockResolvedValue(makeUser());
+
+    const response = await GET(request(url, 'GET'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '400',
+          code: 'invalid_type',
+          title: "'filter' parameter is not supported",
+          source: { parameter: 'filter' },
+        },
+      ],
     });
   });
 

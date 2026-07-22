@@ -107,7 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     //
     async signIn({ user, account }) {
       if (account?.provider !== 'credentials') {
-        // Allow sign-in for users authenticated via credentials
+        // Allow sign-in for non-credentials providers (e.g., OAuth).
         return true;
       }
 

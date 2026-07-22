@@ -90,9 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
 
-    //
     // Add custom fields to the session object
-    //
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.sub as string;
@@ -102,9 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
 
-    //
     // Check if the user is allowed to sign in
-    //
     async signIn({ user, account }) {
       if (account?.provider !== 'credentials') {
         // Allow sign-in for non-credentials providers (e.g., OAuth).
@@ -124,7 +120,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return false;
       }
 
-      // check email verification status
       return true;
     },
   },

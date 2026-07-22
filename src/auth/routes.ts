@@ -1,7 +1,7 @@
 import type { Session } from 'next-auth';
 
 /**
- * Full match those routes for public urls.
+ * Routes that are accessible with or without an authenticated session.
  *
  * Actions
  * -  Authenticated users - can access
@@ -12,7 +12,7 @@ const publicRoutes = ['/', '/error', '/auth/signup'];
 const publicRoutePrefixes = ['/api'];
 
 /**
- * Full match those routes for Login required urls.
+ * Authentication routes that redirect already authenticated users home.
  *
  * Actions
  * -  Authenticated users - redirect to home page

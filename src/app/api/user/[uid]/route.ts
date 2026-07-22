@@ -32,9 +32,9 @@ export async function userRouteHandler({ request, params, routeFunc }: UserRoute
 }
 
 /**
- * Get the profile of a user by email.
- * @param params
- * @returns
+ * Retrieve a user's profile after checking access to the requested user ID.
+ * @param params - The authenticated user, request, and target user ID.
+ * @returns A JSON:API response containing the user or an authorization/not-found error.
  */
 async function getUserProfileRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
@@ -89,11 +89,11 @@ async function getUserProfileRouteHandler(params: {
 }
 
 /**
- * Only allow ADMIN to modify other users' profiles. Users can modify their own profile.
- * Only allow ADMIN to change roles. Users can change their own name and password.
+ * Administrators may modify any user's profile; other users may modify only their own.
+ * Only administrators may change roles. Users may change their own name.
  * Sample request: PATCH /api/user/{uid}
- * @param params
- * @returns
+ * @param params - The authenticated user, request, and target user ID.
+ * @returns A JSON:API response containing the updated user or a validation/authorization error.
  */
 async function modifyUserProfileRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
@@ -190,9 +190,9 @@ async function modifyUserProfileRouteHandler(params: {
 }
 
 /**
- * Delete a user profile
- * @param params
- * @returns
+ * Delete another user's profile when requested by an administrator.
+ * @param params - The authenticated user, request, and target user ID.
+ * @returns An empty JSON:API success response or an authorization/not-found error.
  */
 async function deleteUserRouteHandler(params: {
   currentUser: ExtendedSessionUser | null | undefined;
@@ -245,24 +245,24 @@ async function deleteUserRouteHandler(params: {
     }),
   );
 }
+
 /**
- * Get the profile of a user by email.
- * Sample request: GET /api/user/{email}
+ * Get a user's profile by ID.
+ * Sample request: GET /api/user/{uid}
  * @param {Request} request - The incoming HTTP request object.
- * @param {{ params: Promise<{ email: string }> }} param1 - An object containing the route parameters, specifically the email of the user to fetch.
+ * @param {{ params: Promise<{ uid: string }> }} context - The route context containing the user ID to fetch.
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response containing the user details in JSON:API format or an error response.
- * @constructor
  */
 export async function GET(request: Request, { params }: { params: Promise<{ uid: string }> }) {
   return userRouteHandler({ request, params, routeFunc: getUserProfileRouteHandler });
 }
 
 /**
- * Delete a user profile
- * Sample request: DELETE /api/user/{email}
+ * Delete a user's profile by ID.
+ * Sample request: DELETE /api/user/{uid}
  *
  * @param {Request} request - The incoming HTTP request object.
- * @param {{ params: Promise<{ email: string }> }} param1 - An object containing the route parameters, specifically the email of the user to delete.
+ * @param {{ params: Promise<{ uid: string }> }} context - The route context containing the user ID to delete.
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response indicating the result of the delete operation.
  */
 export async function DELETE(request: Request, { params }: { params: Promise<{ uid: string }> }) {
@@ -271,9 +271,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ u
 
 /**
  * Modify a user's profile.
- * Sample request: PATCH /api/user/{id}
+ * Sample request: PATCH /api/user/{uid}
  * @param request - The incoming HTTP request object.
- * @param {{ params: Promise<{ uid: string }> }} param1 - An object containing the route parameters, specifically the id of the user to modify.
+ * @param {{ params: Promise<{ uid: string }> }} context - The route context containing the user ID to modify.
  * @returns {Promise<Response>} - A promise that resolves to an HTTP response indicating the result of the modify operation.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ uid: string }> }) {

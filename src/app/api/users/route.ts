@@ -80,7 +80,7 @@ export async function GET(request: Request) {
 
 /**
  * Create a credential user.
- * Testing purpose: I make this API as public for now, but in production, it should be protected by admin role.
+ * This endpoint is intentionally public for the current test application.
  */
 export async function POST(request: Request) {
   try {

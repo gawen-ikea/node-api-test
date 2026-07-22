@@ -318,7 +318,8 @@ test.describe('/api/users GET tests', () => {
       totalPages: expect.any(Number),
     });
     expect(document.meta.page.total).toBeGreaterThanOrEqual(11);
-    expect(document.meta.page.totalPages).toBe(Math.ceil(document.meta.page.total / 5));
+    expect(document.meta.page.totalPages).toBe(Math.max(Math.ceil(document.meta.page.total / 5), 1));
+    expect(new URL(document.links.last).searchParams.get('page[number]')).toBe(`${document.meta.page.totalPages}`);
     expect(new URL(document.links.prev!).searchParams.get('page[number]')).toBe('1');
     expect(new URL(document.links.next!).searchParams.get('page[number]')).toBe('3');
   });

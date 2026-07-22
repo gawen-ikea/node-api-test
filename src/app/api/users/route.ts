@@ -52,14 +52,13 @@ export async function GET(request: Request) {
     const total = await countDtoUsers({
       filter: query.filter,
     });
-    const totalPages = Math.ceil(total / query.page.size);
-    const lastPage = Math.max(totalPages, 1);
+    const totalPages = Math.max(Math.ceil(total / query.page.size), 1);
     const document = serializeJsonApi('users', users, {
       fields: query.fields,
       links: {
         self: request.url,
         first: getPageUrl(request.url, 1, query.page.size),
-        last: getPageUrl(request.url, lastPage, query.page.size),
+        last: getPageUrl(request.url, totalPages, query.page.size),
         prev: query.page.number > 1 ? getPageUrl(request.url, query.page.number - 1, query.page.size) : null,
         next: query.page.number < totalPages ? getPageUrl(request.url, query.page.number + 1, query.page.size) : null,
       },

@@ -195,7 +195,7 @@ describe('GET /api/users', () => {
     expect(findDtoUsers).not.toHaveBeenCalled();
   });
 
-  it('returns 200 when applying a page number 300', async () => {
+  it('returns consistent pagination metadata and links for an empty collection', async () => {
     const url = `${USERS_URL}?page%5Bnumber%5D=300`;
     vi.mocked(auth).mockResolvedValue(adminSession);
     vi.mocked(findDtoUsers).mockResolvedValue([]);
@@ -212,8 +212,9 @@ describe('GET /api/users', () => {
       page: { number: 300, size: 20 },
     });
     expect(countDtoUsers).toHaveBeenCalledWith({ filter: {} });
-    expect(document.meta.page).toEqual({ number: 300, size: 20, total: 0, totalPages: 0 });
+    expect(document.meta.page).toEqual({ number: 300, size: 20, total: 0, totalPages: 1 });
     expect(document.data).toEqual([]);
+    expect(new URL(document.links.last).searchParams.get('page[number]')).toBe('1');
     expect(new URL(document.links.prev).searchParams.get('page[number]')).toBe('299');
     expect(document.links.next).toBeNull();
   });

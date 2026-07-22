@@ -141,7 +141,7 @@ async function modifyUserProfileRouteHandler(params: {
       title: 'Bad Request',
       detail: 'The resource identifier in the request body does not match the URL.',
       source: {
-        pointer: request.url,
+        pointer: '/data/id',
       },
     });
   }

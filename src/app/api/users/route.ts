@@ -3,8 +3,15 @@ import { JsonApiError } from '@jsonapi-serde/server/common';
 import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 
 import { parseUsersCreationRequest, parseUsersListQuery, serializeJsonApi } from '@/schema/entity-serializer';
-import { createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
+import { countDtoUsers, createDtoUser, findDtoUserByEmail, findDtoUsers } from '@/data/db-auth';
 import { apiJsonDocumentResponse, apiJsonErrorResponse, standardErrorResponse } from '@/utils/api-utils';
+
+function getPageUrl(requestUrl: string, pageNumber: number, pageSize: number): string {
+  const url = new URL(requestUrl);
+  url.searchParams.set('page[number]', `${pageNumber}`);
+  url.searchParams.set('page[size]', `${pageSize}`);
+  return url.toString();
+}
 
 /**
  * Get the collection of users.
@@ -37,11 +44,32 @@ export async function GET(request: Request) {
     }
 
     const query = parseUsersListQuery(new URL(request.url).searchParams);
-    const users = await findDtoUsers();
+    const users = await findDtoUsers({
+      filter: query.filter,
+      sort: query.sort,
+      page: query.page,
+    });
+    const total = await countDtoUsers({
+      filter: query.filter,
+    });
+    const totalPages = Math.ceil(total / query.page.size);
+    const lastPage = Math.max(totalPages, 1);
     const document = serializeJsonApi('users', users, {
       fields: query.fields,
       links: {
         self: request.url,
+        first: getPageUrl(request.url, 1, query.page.size),
+        last: getPageUrl(request.url, lastPage, query.page.size),
+        prev: query.page.number > 1 ? getPageUrl(request.url, query.page.number - 1, query.page.size) : null,
+        next: query.page.number < totalPages ? getPageUrl(request.url, query.page.number + 1, query.page.size) : null,
+      },
+      meta: {
+        page: {
+          number: query.page.number,
+          size: query.page.size,
+          total,
+          totalPages,
+        },
       },
     });
 

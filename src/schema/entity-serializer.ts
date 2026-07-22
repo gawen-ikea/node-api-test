@@ -25,7 +25,7 @@ export const serializeJsonApi = SerializeBuilder.new().add('users', userSerializ
 export const parseUserListQuery = createQueryParser({
   fields: {
     allowed: {
-      users: ['name', 'role'],
+      users: ['name', 'role', 'email', 'emailVerified'],
     },
   },
 });
@@ -46,18 +46,19 @@ export const parseUsersListQuery = createQueryParser({
   },
   sort: {
     allowed: ['name', 'role', 'email', 'createdAt', 'updatedAt'],
+    multiple: true,
   },
   filter: z
     .object({
-      role: z.string().optional(),
+      role: z.enum(['USER', 'ADMIN']).optional(),
     })
-    .optional(),
+    .default({}),
   page: z
     .object({
-      number: z.coerce.number().int().min(0).optional(),
-      size: z.coerce.number().int().min(10).optional(),
+      number: z.coerce.number().int().min(1).default(1),
+      size: z.coerce.number().int().min(1).max(100).default(20),
     })
-    .optional(),
+    .default({ number: 1, size: 20 }),
 });
 
 export function parseUsersCreationRequest(context: ParseResourceRequestContext) {

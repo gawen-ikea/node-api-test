@@ -96,16 +96,23 @@ describe('GET /api/users', () => {
   it('returns a JSON:API user collection for an administrator', async () => {
     const users = [makeUser(), makeUser({ id: 'admin-id', email: 'admin@example.com', role: 'ADMIN' })];
     vi.mocked(auth).mockResolvedValue(adminSession);
-    vi.mocked(findDtoUsers).mockResolvedValue(users);
+    vi.mocked(findDtoUsers).mockResolvedValue({ users, total: 2 });
 
     const response = await GET(getRequest());
     const document = await response.json();
 
     expect(response.status, JSON.stringify(document)).toBe(200);
     expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
-    expect(findDtoUsers).toHaveBeenCalledOnce();
+    expect(findDtoUsers).toHaveBeenCalledWith({
+      filter: {},
+      sort: [],
+      page: { number: 1, size: 20 },
+    });
     expect(document).toMatchObject({
       links: { self: USERS_URL },
+      meta: {
+        page: { number: 1, size: 20, total: 2, totalPages: 1 },
+      },
       data: [
         {
           type: 'users',
@@ -129,13 +136,57 @@ describe('GET /api/users', () => {
   it('applies a JSON:API sparse fieldset', async () => {
     const url = `${USERS_URL}?fields%5Busers%5D=name`;
     vi.mocked(auth).mockResolvedValue(adminSession);
-    vi.mocked(findDtoUsers).mockResolvedValue([makeUser()]);
+    vi.mocked(findDtoUsers).mockResolvedValue({ users: [makeUser()], total: 1 });
 
     const response = await GET(getRequest(url));
     const document = await response.json();
 
     expect(response.status, JSON.stringify(document)).toBe(200);
     expect(document.data[0].attributes).toEqual({ name: 'Member User' });
+  });
+
+  it('applies filtering, multi-field sorting, and pagination', async () => {
+    const url = `${USERS_URL}?filter%5Brole%5D=ADMIN&sort=-createdAt,name&page%5Bnumber%5D=2&page%5Bsize%5D=1`;
+    const users = [makeUser({ id: 'admin-id', email: 'admin@example.com', role: 'ADMIN' })];
+    vi.mocked(auth).mockResolvedValue(adminSession);
+    vi.mocked(findDtoUsers).mockResolvedValue({ users, total: 3 });
+
+    const response = await GET(getRequest(url));
+    const document = await response.json();
+
+    expect(response.status, JSON.stringify(document)).toBe(200);
+    expect(findDtoUsers).toHaveBeenCalledWith({
+      filter: { role: 'ADMIN' },
+      sort: [
+        { field: 'createdAt', order: 'desc' },
+        { field: 'name', order: 'asc' },
+      ],
+      page: { number: 2, size: 1 },
+    });
+    expect(document.meta.page).toEqual({ number: 2, size: 1, total: 3, totalPages: 3 });
+
+    expect(new URL(document.links.first).searchParams.get('page[number]')).toBe('1');
+    expect(new URL(document.links.last).searchParams.get('page[number]')).toBe('3');
+    expect(new URL(document.links.prev).searchParams.get('page[number]')).toBe('1');
+    expect(new URL(document.links.next).searchParams.get('page[number]')).toBe('3');
+    expect(new URL(document.links.next).searchParams.get('filter[role]')).toBe('ADMIN');
+    expect(new URL(document.links.next).searchParams.get('sort')).toBe('-createdAt,name');
+  });
+
+  it.each([
+    [`${USERS_URL}?filter%5Brole%5D=OWNER`, 'filter[role]'],
+    [`${USERS_URL}?page%5Bnumber%5D=0`, 'page[number]'],
+    [`${USERS_URL}?page%5Bsize%5D=101`, 'page[size]'],
+    [`${USERS_URL}?sort=password`, 'sort'],
+  ])('rejects an invalid collection query: %s', async (url, sourceParameter) => {
+    vi.mocked(auth).mockResolvedValue(adminSession);
+
+    const response = await GET(getRequest(url));
+    const document = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(document.errors[0].source).toEqual({ parameter: sourceParameter });
+    expect(findDtoUsers).not.toHaveBeenCalled();
   });
 
   it('returns 401 when there is no authenticated user', async () => {

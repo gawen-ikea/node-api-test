@@ -4,7 +4,7 @@ import { getAcceptableMediaTypes } from '@jsonapi-serde/server/http';
 import { auth, ExtendedSessionUser } from '@/auth/auth-core';
 import { apiJsonErrorResponse, apiJsonDocumentResponse, standardErrorResponse } from '@/utils/api-utils';
 import { deleteUserById, findDtoUserById, modifyUserById } from '@/data/db-auth';
-import { parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
+import { parseUserListQuery, parseUserModifyRequest, serializeJsonApi } from '@/schema/entity-serializer';
 
 type UserRouteParams = {
   request: Request;
@@ -76,7 +76,11 @@ async function getUserProfileRouteHandler(params: {
     );
   }
 
+  // parse request parameters
+  const options = parseUserListQuery(new URL(request.url).searchParams);
+
   const serializedUser = serializeJsonApi('users', targetUser, {
+    fields: options.fields,
     links: {
       self: request.url,
     },

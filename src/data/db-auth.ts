@@ -4,6 +4,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import type { CredentialCreationRequest } from '@/schema/api-schema';
 import { prisma } from '@/service/db-service';
 import { DtoUser, DtoUserSchema } from '@/schema/db-schema';
+import type { Prisma } from '@/generated/prisma/client';
 import { customAlphabet } from 'nanoid';
 
 const SETTING_PASSWORD_SALT_ROUNDS = 12;
@@ -35,14 +36,43 @@ export async function listAllDtoUsers(): Promise<DtoUser[]> {
   return dbUsers.map(parseDtoUser);
 }
 
-export async function findDtoUsers(): Promise<DtoUser[]> {
+type FindDtoUsersOptions = {
+  filter?: { role?: 'USER' | 'ADMIN' };
+  sort?: { field: keyof DtoUser; order: 'asc' | 'desc' }[];
+  page?: { number: number; size: number };
+};
+
+export async function findDtoUsers(options?: FindDtoUsersOptions): Promise<DtoUser[]> {
+  const where: Prisma.UserWhereInput =
+    options && options.filter && options.filter.role ? { role: options.filter.role } : {};
+  const requestedOrderBy: Prisma.UserOrderByWithRelationInput[] =
+    options && options.sort
+      ? options.sort.map(({ field, order }) => ({
+          [field]: order,
+        }))
+      : [];
+  const orderBy: Prisma.UserOrderByWithRelationInput[] = [
+    ...(requestedOrderBy.length > 0 ? requestedOrderBy : [{ createdAt: 'desc' as const }]),
+    { id: 'asc' },
+  ];
+
   const dbUsers = await prisma.user.findMany({
+    where,
+    orderBy,
+    skip: options && options.page ? ((options.page.number ?? 1) - 1) * (options.page.size ?? 20) : undefined,
+    take: options && options.page ? (options.page.size ?? 20) : undefined,
     include: {
       accounts: true,
     },
   });
 
   return dbUsers.map(parseDtoUser);
+}
+
+export async function countDtoUsers(options?: Pick<FindDtoUsersOptions, 'filter'>): Promise<number> {
+  const where: Prisma.UserWhereInput =
+    options && options.filter && options.filter.role ? { role: options.filter.role } : {};
+  return prisma.user.count({ where });
 }
 
 export async function createDtoUser(request: CredentialCreationRequest): Promise<DtoUser> {

@@ -10,8 +10,8 @@ export function standardErrorResponse(error: unknown): Response {
     return apiJsonErrorResponse(error as Error | JsonApiError);
   } else {
     const errorId = nanoid();
-    console.error(`error[${errorId}] Unexpected error during authentication: ${errorMessage(error)}`);
-    return apiJsonErrorResponse(new Error('Unexpected error during authentication'), {
+    console.error(`error[${errorId}] Unexpected error: ${errorMessage(error)}`);
+    return apiJsonErrorResponse(new Error('Unexpected error'), {
       status: 500,
       detail: `errorId: ${errorId}`,
     });

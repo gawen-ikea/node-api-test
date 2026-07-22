@@ -41,9 +41,7 @@ const SAMPLE_USER_DTO: DtoUser = {
 
 const SAMPLE_ADMIN_EMAIL = 'admin@example.com';
 const SAMPLE_ADMIN_ID = 'admin-user-id';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SAMPLE_ADMIN_URL = `http://localhost/api/user/${SAMPLE_ADMIN_ID}`;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SAMPLE_ADMIN_DTO: DtoUser = {
   id: SAMPLE_ADMIN_ID,
   email: SAMPLE_ADMIN_EMAIL,
@@ -297,6 +295,27 @@ describe('GET /api/user/[uid]', () => {
       errors: [{ status: '404', code: 'not_found' }],
     });
   });
+
+  it('returns when an exception happened while accessing user', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+    vi.mocked(findDtoUserById).mockRejectedValue(new Error('Database connection error'));
+
+    const response = await GET(request(SAMPLE_USER_URL, 'GET'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '500',
+          code: 'internal_server_error',
+          title: 'Internal Server Error',
+        },
+      ],
+    });
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+  });
 });
 
 describe('PATCH /api/user/[uid]', () => {
@@ -404,6 +423,34 @@ describe('PATCH /api/user/[uid]', () => {
     expect(findDtoUserById).not.toHaveBeenCalled();
   });
 
+  it('returns 200 when an admin user attempts to change its own role', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
+    vi.mocked(findDtoUserById).mockResolvedValue(SAMPLE_ADMIN_DTO);
+    vi.mocked(modifyUserById).mockResolvedValue({ ...SAMPLE_ADMIN_DTO, role: 'USER' });
+
+    const response = await PATCH(
+      request(SAMPLE_ADMIN_URL, 'PATCH', modificationDocument({ role: 'USER' }, SAMPLE_ADMIN_ID)),
+      routeContext(SAMPLE_ADMIN_ID),
+    );
+    const document = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_ADMIN_ID);
+    expect(modifyUserById).toHaveBeenCalledWith(SAMPLE_ADMIN_ID, {
+      name: undefined,
+      role: 'USER',
+    });
+    expect(document).toMatchObject({
+      links: { self: SAMPLE_ADMIN_URL },
+      data: {
+        type: 'users',
+        id: SAMPLE_ADMIN_ID,
+        attributes: { email: SAMPLE_ADMIN_EMAIL, name: 'Admin User', role: 'USER' },
+      },
+    });
+  });
+
   it('returns 404 when the target user does not exist', async () => {
     vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
     vi.mocked(findDtoUserById).mockResolvedValue(null);
@@ -434,6 +481,31 @@ describe('PATCH /api/user/[uid]', () => {
     expect(document).toHaveProperty('errors');
     expect(findDtoUserById).not.toHaveBeenCalled();
   });
+
+  it('returns 500 when an exception happened while quering data', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_USER_ID, SAMPLE_USER_EMAIL, 'USER'));
+    vi.mocked(findDtoUserById).mockRejectedValue(new Error('Database connection error'));
+
+    const response = await PATCH(
+      request(SAMPLE_USER_URL, 'PATCH', modificationDocument({ name: 'Updated Name' })),
+      routeContext(SAMPLE_USER_ID),
+    );
+    const document = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '500',
+          code: 'internal_server_error',
+          title: 'Internal Server Error',
+        },
+      ],
+    });
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+    expect(modifyUserById).not.toHaveBeenCalled();
+  });
 });
 
 describe('DELETE /api/user/[uid]', () => {
@@ -443,6 +515,7 @@ describe('DELETE /api/user/[uid]', () => {
 
   it('allows an administrator to delete another user', async () => {
     vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
+    vi.mocked(findDtoUserById).mockResolvedValue(SAMPLE_USER_DTO);
     vi.mocked(deleteUserById).mockResolvedValue();
 
     const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
@@ -477,6 +550,44 @@ describe('DELETE /api/user/[uid]', () => {
     const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
 
     expect(response.status).toBe(403);
+    expect(deleteUserById).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when an exception happened while quering data', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
+    vi.mocked(findDtoUserById).mockResolvedValue(SAMPLE_USER_DTO);
+    vi.mocked(deleteUserById).mockRejectedValue(new Error('Database connection error'));
+
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [
+        {
+          status: '500',
+          code: 'internal_server_error',
+          title: 'Internal Server Error',
+        },
+      ],
+    });
+    expect(deleteUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
+  });
+
+  it('returns 404 when an admin deletes a non-existing user', async () => {
+    vi.mocked(auth).mockResolvedValue(session(SAMPLE_ADMIN_ID, SAMPLE_ADMIN_EMAIL, 'ADMIN'));
+    vi.mocked(findDtoUserById).mockResolvedValue(null);
+
+    const response = await DELETE(request(SAMPLE_USER_URL, 'DELETE'), routeContext(SAMPLE_USER_ID));
+    const document = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toBe(JSON_API_MEDIA_TYPE);
+    expect(document).toMatchObject({
+      errors: [{ status: '404', code: 'not_found', title: 'Not Found' }],
+    });
+    expect(findDtoUserById).toHaveBeenCalledWith(SAMPLE_USER_ID);
     expect(deleteUserById).not.toHaveBeenCalled();
   });
 });

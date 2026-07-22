@@ -222,6 +222,19 @@ async function deleteUserRouteHandler(params: {
     );
   }
 
+  // Find the user in the database
+  const dbUser = await findDtoUserById(uid);
+  if (!dbUser) {
+    return apiJsonErrorResponse(
+      new JsonApiError({
+        status: '404',
+        code: 'not_found',
+        title: 'Not Found',
+        detail: 'The user does not exist.',
+      }),
+    );
+  }
+
   await deleteUserById(uid);
   return apiJsonDocumentResponse(
     serializeJsonApi('users', null, {

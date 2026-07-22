@@ -1,6 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 import { createUser, JSON_API_MEDIA_TYPE, signIn, uniqueSmokeEmail } from '../../../support/api';
+
+function patchUser(request: APIRequestContext, userId: string, attributes: Record<string, unknown>) {
+  return request.patch(`/api/user/${encodeURIComponent(userId)}`, {
+    headers: {
+      'Content-Type': JSON_API_MEDIA_TYPE,
+    },
+    data: {
+      data: {
+        type: 'users',
+        id: userId,
+        attributes,
+      },
+    },
+  });
+}
 
 test.describe('/api/user/[uid] GET tests', () => {
   test('let a user with USER role to fetch own profile', async ({ request }) => {
@@ -199,6 +214,128 @@ test.describe('/api/user/[uid] PATCH tests', () => {
         id: member.id,
         attributes: { name: 'Updated Smoke Member' },
       },
+    });
+  });
+
+  test('let an admin to change his own profile to USER role', async ({ request }) => {
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('demote-admin'),
+      name: 'Smoke Demote Admin',
+      role: 'ADMIN',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await patchUser(request, administrator.id, { role: 'USER' });
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        type: 'users',
+        id: administrator.id,
+        attributes: { role: 'USER' },
+      },
+    });
+  });
+
+  test('reject a member to change his own profile to ADMIN role', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('promote-member'),
+      name: 'Smoke Promote Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await patchUser(request, member.id, { role: 'ADMIN' });
+    expect(response.status()).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '403', code: 'forbidden' }],
+    });
+  });
+
+  test('reject a member to change his name to a single character', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('short-name-member'),
+      name: 'Smoke Short Name Member',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await patchUser(request, member.id, { name: 'A' });
+    expect(response.status()).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [
+        {
+          status: '422',
+          code: 'too_small',
+          source: { pointer: '/data/attributes/name' },
+        },
+      ],
+    });
+  });
+
+  test('reject a member to change other user profile', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('cross-update-member'),
+      name: 'Smoke Cross Update Member',
+      role: 'USER',
+    });
+    const otherUser = await createUser(request, {
+      email: uniqueSmokeEmail('cross-update-other'),
+      name: 'Smoke Cross Update Other',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: member.attributes.email });
+
+    const response = await patchUser(request, otherUser.id, { name: 'Forbidden Update' });
+    expect(response.status()).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '403', code: 'forbidden' }],
+    });
+  });
+
+  test('reject an ADMIN to change others user name to one character', async ({ request }) => {
+    const administrator = await createUser(request, {
+      email: uniqueSmokeEmail('short-name-admin'),
+      name: 'Smoke Short Name Admin',
+      role: 'ADMIN',
+    });
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('short-name-target'),
+      name: 'Smoke Short Name Target',
+      role: 'USER',
+    });
+
+    await signIn(request, { email: administrator.attributes.email });
+
+    const response = await patchUser(request, member.id, { name: 'A' });
+    expect(response.status()).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [
+        {
+          status: '422',
+          code: 'too_small',
+          source: { pointer: '/data/attributes/name' },
+        },
+      ],
+    });
+  });
+
+  test('reject an unauthenticated user to change any profile', async ({ request }) => {
+    const member = await createUser(request, {
+      email: uniqueSmokeEmail('unauthenticated-update'),
+      name: 'Smoke Unauthenticated Update',
+      role: 'USER',
+    });
+
+    const response = await patchUser(request, member.id, { name: 'Unauthorized Update' });
+    expect(response.status()).toBe(401);
+    expect(response.headers()['content-type']).toBe(JSON_API_MEDIA_TYPE);
+    await expect(response.json()).resolves.toMatchObject({
+      errors: [{ status: '401', code: 'unauthorized' }],
     });
   });
 });

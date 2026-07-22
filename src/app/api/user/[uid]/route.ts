@@ -118,7 +118,7 @@ async function modifyUserProfileRouteHandler(params: {
         status: '403',
         code: 'forbidden',
         title: 'Forbidden',
-        detail: 'You do not have permission to retrieve the profile of this user.',
+        detail: 'You do not have permission to modify the profile of this user.',
       }),
     );
   }

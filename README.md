@@ -6,6 +6,25 @@
 - auth.js
 - prisma as ORM
 
+## API
+
+- `POST /api/users` creates credential users and is intentionally public for the current test application.
+- `GET /api/users` allows an administrator to list credential users.
+- `GET /api/user/[uid]` fetch user's own profile or allow an administrator to fetch another user's profile.
+- `PATCH /api/user/[uid]` allows users to update their name fields; only administrators may change name and roles or update another user.
+- `DELETE /api/user/[uid]` allows an administrator to delete another user, but not their own account.
+
+## Source layout and responsibilities
+
+- `src/app/api/**/route.ts`: HTTP concerns, authentication/authorization, request parsing, response status, headers, links, and JSON:API documents.
+- `src/auth/`: Auth.js configuration and route authorization. Session users carry `id`, `email`, and `role`.
+- `src/schema/`: Zod schemas.
+- `src/schema/entity-serializer.ts`: JSON:API request parsing, query validation, sparse fields, filters, sorting, pagination, and response serialization.
+- `src/data/`: all user database operations, password hashing, DTO validation, stable query ordering, and cache invalidation after writes.
+- `src/service/`: the shared services.
+- `src/utils/`: the utilities.
+- `prisma/schema.prisma`: the editable database schema. `src/generated/prisma/` is generated output; never edit it by hand. Run `pnpm build:prisma` after schema changes.
+
 ## Running the project in development
 
 ### Prerequisites - setup db
@@ -48,7 +67,7 @@ pnpm install && pnpm build:prisma && pnpm db:push
 
 ### Run the project
 
-- Run the following command to start the project:
+Run the following command to start the project:
 
 ```bash
 pnpm dev

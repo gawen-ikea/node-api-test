@@ -3,6 +3,7 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+
 minimumReleaseAgeExclude:
   - '@prisma/config@7.9.0'
   - '@prisma/debug@7.9.0'
@@ -11,3 +12,8 @@ minimumReleaseAgeExclude:
   - '@prisma/get-platform@7.9.0'
   - prisma@7.9.0
 
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+  - sharp
+  - unrs-resolver
